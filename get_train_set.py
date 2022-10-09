@@ -30,7 +30,7 @@ def get_bieo(x):
     return x
 
 
-def get_label(_data):
+def get_label(_data, output_file):
     _data['label'] = 0
     df_res = []
     for sc in _data['stock_code'].unique():
@@ -54,23 +54,21 @@ def get_label(_data):
             df_res.loc[i, 'label'] = 2
             df_res.loc[i + 1, 'label'] = 2
 
-    res = []
     columns = np.array([['open_price-{}'.format(i), 'high_price-{}'.format(i),
                          'low_price-{}'.format(i), 'close_price-{}'.format(i),
                          'period_volume-{}'.format(i)] for i in range(20, 0, -1)]).reshape(1, -1).squeeze()
+    with open(output_file) as f:
 
-    for sc in df_res['stock_code'].unique():
-        tmp = df_res[df_res['stock_code'] == sc].sort_values(by='datetime').reset_index().drop('index', axis=1)
-        for i in tmp.index[20:]:
-            _step = np.array(tmp.loc[range(i - 20, i), ['open_price', 'high_price', 'low_price',
-                                                        'close_price', 'period_volume']]).reshape(1, -1).squeeze()
-            _step = pd.DataFrame(_step).T
-            _step.columns = columns
-            _step['stock_code'] = sc
-            _step['label'] = tmp.loc[i, 'label']
-            res.append(_step)
-    res = pd.concat(res)
-    return res
+        for sc in df_res['stock_code'].unique():
+            tmp = df_res[df_res['stock_code'] == sc].sort_values(by='datetime').reset_index().drop('index', axis=1)
+            for i in tmp.index[20:]:
+                _step = np.array(tmp.loc[range(i - 20, i), ['open_price', 'high_price', 'low_price',
+                                                            'close_price', 'period_volume']]).reshape(1, -1).squeeze()
+                _step = np.append(_step, [sc, tmp.loc[i, 'label']])
+                f.write(','.join(_step))
+                f.write('\n')
+                
+    return 
 
 
 if __name__ == '__main__':
@@ -79,5 +77,4 @@ if __name__ == '__main__':
     df = pd.read_sql_table('ma60m', engine)
     df['datetime'] = pd.to_datetime(df['datetime'])
     df = df[~df['stock_code'].str.startswith('sz30')]
-    train_set = get_label(df)
-    train_set.to_csv('./trainset/train_set_sample2.csv', index=False)
+    get_label(df, './trainset/train_set_sample2.csv')

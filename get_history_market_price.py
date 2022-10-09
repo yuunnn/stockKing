@@ -56,12 +56,11 @@ def get_market_price(_api, _symbols, _scale):
         stock_ma_info['high_price'] = stock_ma_info['high_price'].astype('double')
         stock_ma_info['low_price'] = stock_ma_info['low_price'].astype('double')
         stock_ma_info['close_price'] = stock_ma_info['close_price'].astype('double')
-        stock_ma_info['period_volume'] = stock_ma_info['period_volume'].astype('int')
+        stock_ma_info['period_volume'] = stock_ma_info['period_volume'].astype('int64')
 
         data_to_sqlite('ma{}m'.format(scale), stock_ma_info, engine)
         print(k, symbol)
         k += 1
-        pd.read_sql_table()
 
 
 def data_to_sqlite(table, _data, engine):
@@ -71,7 +70,7 @@ def data_to_sqlite(table, _data, engine):
 if __name__ == '__main__':
     api_url = "https://quotes.sina.cn/cn/api/json_v2.php/" \
               "CN_MarketDataService.getKLineData?symbol={}&scale={}&ma=yes&datalen=2023"
-    file = open('./database/symbols.json').readlines()
+    file = open('./database/symbols.json', encoding='utf-8').readlines()
     symbols = json.loads(file[0])
     scale = 60
     get_market_price(api_url, symbols, scale)
