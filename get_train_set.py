@@ -57,7 +57,7 @@ def get_label(_data, output_file):
     columns = np.array([['open_price-{}'.format(i), 'high_price-{}'.format(i),
                          'low_price-{}'.format(i), 'close_price-{}'.format(i),
                          'period_volume-{}'.format(i)] for i in range(20, 0, -1)]).reshape(1, -1).squeeze()
-    with open(output_file) as f:
+    with open(output_file, 'a') as f:
 
         for sc in df_res['stock_code'].unique():
             tmp = df_res[df_res['stock_code'] == sc].sort_values(by='datetime').reset_index().drop('index', axis=1)
