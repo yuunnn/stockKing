@@ -43,7 +43,8 @@ class PreprocessedDataset(Dataset):
         if self.training:
             _label = torch.tensor(int(line.split(',')[-1]))
             return _data, _label
-        return _data
+        _sc = line.split(',')[-1]
+        return _data, _sc
 
 
 class sequenceModel(nn.Module):
@@ -73,31 +74,20 @@ class sequenceModel(nn.Module):
         return x
 
 
-def train(lr=0.001, batch_size=32, epoch=5):
-    model = sequenceModel(5, 5)
-    optim = Adam(model.parameters(), lr=lr)
-    ts = int(time.time())
-    for e in range(epoch):
-        total_loss = 0
-        batch_count = 1
-        for file in os.listdir('./trainset'):
-            if len(file.split('.')) == 1:
-                _dataset = PreprocessedDataset(os.path.join('./trainset', file))
-                loader = DataLoader(_dataset, batch_size=batch_size, shuffle=True)
-                pbar = tqdm(loader)
-                pbar.set_description("[Epoch {}, File {}]".format(e, file))
-                for _data, _label in pbar:
-                    softmax_res = model(_data)
-                    loss = -torch.take(softmax_res, _label).log().sum()
-                    total_loss += loss.item()
-                    optim.zero_grad()
-                    loss.backward()
-                    # 更新参数
-                    optim.step()
-                    pbar.set_postfix(avg_loss=total_loss/batch_count)
-                    batch_count += 1
-        torch.save(model, os.path.join('./models', f'model_{ts}.pkl'))  # save entire net
+def predict(model_file, predicts_file):
+    model = torch.load(model_file)
+    _dataset = PreprocessedDataset(predicts_file, training=False)
+    loader = DataLoader(_dataset, batch_size=32)
+
+    pbar = tqdm(loader)
+    stocks = []
+    res = []
+    for _data, sc in pbar:
+        softmax_res = model(_data)
+        stocks.append(sc)
+        res.append(softmax_res)
+    print(1)
 
 
 if __name__ == "__main__":
-    train()
+    predict()
