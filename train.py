@@ -49,18 +49,18 @@ class PreprocessedDataset(Dataset):
 class sequenceModel(nn.Module):
     def __init__(self, step_input_size, hidden_size, sequence_size=SEQUENCE_SIZE):
         super().__init__()
-        self.lstm = nn.LSTM(input_size=step_input_size, hidden_size=hidden_size, num_layers=sequence_size,
+        self.lstm = nn.LSTM(input_size=step_input_size, hidden_size=hidden_size, num_layers=1,
                             batch_first=True)
         self.pre_bn = nn.BatchNorm1d(step_input_size)
 
-        # _fc1 = nn.Linear(hidden_size * sequence_size, 64)
-        _fc1 = nn.Linear(hidden_size, 64)
+        _fc1 = nn.Linear(hidden_size * sequence_size, 64)
+        # _fc1 = nn.Linear(hidden_size, 64)
         _fc2 = nn.Linear(64, 4)
         self.mlp = nn.Sequential(
             _fc1,
             nn.PReLU(),
-            _fc2,
-            nn.Softmax()
+            _fc2
+            # nn.Softmax()
         )
 
     def forward(self, x):
@@ -68,16 +68,16 @@ class sequenceModel(nn.Module):
         x = self.pre_bn(x)
         x = torch.transpose(x, dim0=1, dim1=2)
         x_seq_output, (hn, cn) = self.lstm(x)
-        x = self.mlp(x_seq_output[:, -1, :])
-        # x = self.mlp(x_seq_output.flatten(start_dim=1))
+        # x = self.mlp(x_seq_output[:, -1, :])
+        x = self.mlp(x_seq_output.flatten(start_dim=1))
         # x = torch.transpose(hn, dim0=0, dim1=1).flatten(start_dim=1)
         return x
-
 
 def train(lr=0.001, batch_size=128, epoch=5):
     model = sequenceModel(5, 5)
     optim = Adam(model.parameters(), lr=lr)
     ts = int(time.time())
+    ce = nn.CrossEntropyLoss()
     for e in range(epoch):
         total_loss = 0
         batch_count = 1
@@ -89,7 +89,8 @@ def train(lr=0.001, batch_size=128, epoch=5):
                 pbar.set_description("[Epoch {}, File {}]".format(e, file))
                 for _data, _label in pbar:
                     softmax_res = model(_data)
-                    loss = -torch.take(softmax_res, _label).log().sum()
+                    # loss = -torch.take(softmax_res, _label).log().sum()
+                    loss = ce(softmax_res, _label)
                     total_loss += loss.item()
                     optim.zero_grad()
                     loss.backward()
