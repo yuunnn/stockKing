@@ -2,7 +2,7 @@ import json
 import requests
 import pandas as pd
 import os
-
+import time
 import sqlalchemy
 import random
 
@@ -37,29 +37,39 @@ def get_market_price(_api, _symbols, _scale, _datalen):
     k = 0
     database_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database')
     engine = sqlalchemy.create_engine('sqlite:///{}'.format(os.path.join(database_path, 'StockKing.db')))
+    flag = 0
     for symbol in _symbols:
+
         symbol = symbol['Symbol']
-        if 'bj' in symbol:
+        if 'bj' in symbol or flag == 0:
+            if symbol == 'sh601878':
+                flag = 1
             continue
         headers = requests_headers()
-        r = requests.get(_api.format(symbol, _scale, _datalen), headers=headers)
-        stock_ma_info = pd.DataFrame(r.json()).rename(columns={
-            'day': 'datetime',
-            'open': 'open_price',
-            'high': 'high_price',
-            'low': 'low_price',
-            'close': 'close_price',
-            'volume': 'period_volume'
-        })
-        stock_ma_info['stock_code'] = symbol
-        stock_ma_info['open_price'] = stock_ma_info['open_price'].astype('double')
-        stock_ma_info['high_price'] = stock_ma_info['high_price'].astype('double')
-        stock_ma_info['low_price'] = stock_ma_info['low_price'].astype('double')
-        stock_ma_info['close_price'] = stock_ma_info['close_price'].astype('double')
-        stock_ma_info['period_volume'] = stock_ma_info['period_volume'].astype('int64')
+        try:
+            r = requests.get(_api.format(symbol, _scale, _datalen), headers=headers, verify=True)
+            stock_ma_info = pd.DataFrame(r.json()).rename(columns={
+                'day': 'datetime',
+                'open': 'open_price',
+                'high': 'high_price',
+                'low': 'low_price',
+                'close': 'close_price',
+                'volume': 'period_volume'
+            })
+            stock_ma_info['stock_code'] = symbol
+            stock_ma_info['open_price'] = stock_ma_info['open_price'].astype('double')
+            stock_ma_info['high_price'] = stock_ma_info['high_price'].astype('double')
+            stock_ma_info['low_price'] = stock_ma_info['low_price'].astype('double')
+            stock_ma_info['close_price'] = stock_ma_info['close_price'].astype('double')
+            stock_ma_info['period_volume'] = stock_ma_info['period_volume'].astype('int64')
 
-        data_to_sqlite('ma{}m'.format(scale), stock_ma_info, engine)
+            data_to_sqlite('ma{}m'.format(scale), stock_ma_info, engine)
+        except Exception as e:
+            print(e)
+            continue
+
         print(k, symbol)
+        time.sleep(random.random() / 12)
         k += 1
 
 

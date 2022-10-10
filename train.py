@@ -53,7 +53,8 @@ class sequenceModel(nn.Module):
                             batch_first=True)
         self.pre_bn = nn.BatchNorm1d(step_input_size)
 
-        _fc1 = nn.Linear(hidden_size*sequence_size, 64)
+        # _fc1 = nn.Linear(hidden_size * sequence_size, 64)
+        _fc1 = nn.Linear(hidden_size, 64)
         _fc2 = nn.Linear(64, 4)
         self.mlp = nn.Sequential(
             _fc1,
@@ -67,13 +68,13 @@ class sequenceModel(nn.Module):
         x = self.pre_bn(x)
         x = torch.transpose(x, dim0=1, dim1=2)
         x_seq_output, (hn, cn) = self.lstm(x)
-        x = torch.transpose(hn, dim0=0, dim1=1).flatten(start_dim=1)
-        x = self.mlp(x)
-
+        x = self.mlp(x_seq_output[:, -1, :])
+        # x = self.mlp(x_seq_output.flatten(start_dim=1))
+        # x = torch.transpose(hn, dim0=0, dim1=1).flatten(start_dim=1)
         return x
 
 
-def train(lr=0.001, batch_size=32, epoch=5):
+def train(lr=0.001, batch_size=128, epoch=5):
     model = sequenceModel(5, 5)
     optim = Adam(model.parameters(), lr=lr)
     ts = int(time.time())
@@ -94,7 +95,7 @@ def train(lr=0.001, batch_size=32, epoch=5):
                     loss.backward()
                     # 更新参数
                     optim.step()
-                    pbar.set_postfix(avg_loss=total_loss/batch_count)
+                    pbar.set_postfix(avg_loss=total_loss / batch_count)
                     batch_count += 1
         torch.save(model, os.path.join('./models', f'model_{ts}.pkl'))  # save entire net
 

@@ -86,8 +86,8 @@ def predict(model_file, predicts_file):
         softmax_res = model(_data)
         stocks.append(sc)
         res.append(softmax_res)
-    print(1)
+    return torch.cat(res), np.concatenate(stocks)
 
 
 if __name__ == "__main__":
-    predict()
+    predict('./models/model_1665403771.pkl', './predictset/latest.csv')
