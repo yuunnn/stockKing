@@ -52,6 +52,7 @@ class Attention(nn.Module):
         self.wq = nn.Linear(emb_dim, emb_dim)
         self.wk = nn.Linear(emb_dim, emb_dim)
         self.wv = nn.Linear(emb_dim, emb_dim)
+        self.emb_dim = emb_dim
 
     @torch.jit.export
     def forward(self, x):
@@ -59,7 +60,7 @@ class Attention(nn.Module):
         kx = self.wk(x)
         vx = self.wv(x)
 
-        qk = torch.matmul(qx, kx.transpose(dim0=1, dim1=2))
+        qk = torch.matmul(qx, kx.transpose(dim0=1, dim1=2)) / (self.emb_dim**0.5)
         qk_softmax = torch.softmax(qk, dim=2)
 
         qkv = torch.einsum('tab,tbc -> tac', qk_softmax, vx)
