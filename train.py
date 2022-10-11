@@ -92,7 +92,7 @@ class sequenceModel(nn.Module):
         x_seq_output, (hn, cn) = self.lstm(x)
         # x = self.mlp(x_seq_output[:, -1, :])
         x_att = self.att(x_seq_output)
-        x = torch.concat([x_seq_output.sum(2), x_att.sum(2)], 1)
+        x = torch.cat([x_seq_output.sum(2), x_att.sum(2)], 1)
         x = self.mlp(x)
         # x = torch.transpose(hn, dim0=0, dim1=1).flatten(start_dim=1)
         return x

@@ -1,3 +1,4 @@
+import datetime
 import os
 import time
 import warnings
@@ -65,8 +66,9 @@ def predict(model_file, predicts_file):
 
 
 if __name__ == "__main__":
-    probs, stock_codes = predict('./models/model_1665476034.pkl', './predictset/latest.csv')
+    probs, stock_codes = predict('./models/model_1665481103.pkl', './predictset/latest.csv')
     df = pd.DataFrame(probs.detach().numpy())
     df.columns = ['不持有', '买入', '持有', '卖出']
     df['code'] = stock_codes
-    df.to_csv('tmp3.csv', index=False)
+    dt = datetime.date.today().strftime('%Y%m%d')
+    df.to_csv('./predictset/output{}.csv'.format(dt), index=False)
