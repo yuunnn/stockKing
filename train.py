@@ -46,16 +46,37 @@ class PreprocessedDataset(Dataset):
         return _data
 
 
+class Attention(nn.Module):
+    def __init__(self, emb_dim):
+        super().__init__()
+        self.wq = nn.Linear(emb_dim, emb_dim)
+        self.wk = nn.Linear(emb_dim, emb_dim)
+        self.wv = nn.Linear(emb_dim, emb_dim)
+
+    @torch.jit.export
+    def forward(self, x):
+        qx = self.wq(x)
+        kx = self.wk(x)
+        vx = self.wv(x)
+
+        qk = torch.matmul(qx, kx.transpose(dim0=1, dim1=2))
+        qk_softmax = torch.softmax(qk, dim=2)
+
+        qkv = torch.einsum('tab,tbc -> tac', qk_softmax, vx)
+        return qkv
+
+
 class sequenceModel(nn.Module):
     def __init__(self, step_input_size, hidden_size, sequence_size=SEQUENCE_SIZE):
         super().__init__()
         self.lstm = nn.LSTM(input_size=step_input_size, hidden_size=hidden_size, num_layers=1,
                             batch_first=True)
         self.pre_bn = nn.BatchNorm1d(step_input_size)
+        self.att = Attention(hidden_size)
 
-        _fc1 = nn.Linear(hidden_size * sequence_size, 64)
-        # _fc1 = nn.Linear(hidden_size, 64)
-        _fc2 = nn.Linear(64, 4)
+        _fc1 = nn.Linear(2 * sequence_size, int(hidden_size / 2))
+        # _fc1 = nn.Linear(hidden_size, int(hidden_size/2))
+        _fc2 = nn.Linear(int(hidden_size / 2), 4)
         self.mlp = nn.Sequential(
             _fc1,
             nn.PReLU(),
@@ -69,12 +90,15 @@ class sequenceModel(nn.Module):
         x = torch.transpose(x, dim0=1, dim1=2)
         x_seq_output, (hn, cn) = self.lstm(x)
         # x = self.mlp(x_seq_output[:, -1, :])
-        x = self.mlp(x_seq_output.flatten(start_dim=1))
+        x_att = self.att(x_seq_output)
+        x = torch.concat([x_seq_output.sum(2), x_att.sum(2)], 1)
+        x = self.mlp(x)
         # x = torch.transpose(hn, dim0=0, dim1=1).flatten(start_dim=1)
         return x
 
+
 def train(lr=0.001, batch_size=128, epoch=5):
-    model = sequenceModel(5, 5)
+    model = sequenceModel(5, 12)
     optim = Adam(model.parameters(), lr=lr)
     ts = int(time.time())
     ce = nn.CrossEntropyLoss()

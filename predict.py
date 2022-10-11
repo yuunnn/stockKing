@@ -8,7 +8,7 @@ from torch import nn
 from torch.optim import Adam
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
-from train import sequenceModel
+from train import sequenceModel, Attention
 
 warnings.filterwarnings('ignore')
 SEQUENCE_SIZE = 20
@@ -65,8 +65,8 @@ def predict(model_file, predicts_file):
 
 
 if __name__ == "__main__":
-    probs, stock_codes = predict('./models/model_1665421818.pkl', './predictset/latest.csv')
+    probs, stock_codes = predict('./models/model_1665476034.pkl', './predictset/latest.csv')
     df = pd.DataFrame(probs.detach().numpy())
     df.columns = ['不持有', '买入', '持有', '卖出']
     df['code'] = stock_codes
-    df.to_csv('tmp.csv', index=False)
+    df.to_csv('tmp3.csv', index=False)
