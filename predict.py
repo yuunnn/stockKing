@@ -66,7 +66,7 @@ def predict(model_file, predicts_file):
 
 
 if __name__ == "__main__":
-    probs, stock_codes = predict('./models/model_1665481103.pkl', './predictset/latest.csv')
+    probs, stock_codes = predict('./models/model_1665565521.pkl', './predictset/latest.csv')
     df = pd.DataFrame(probs.detach().numpy())
     df.columns = ['不持有', '买入', '持有', '卖出']
     df['code'] = stock_codes

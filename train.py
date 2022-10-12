@@ -49,9 +49,21 @@ class PreprocessedDataset(Dataset):
 class Attention(nn.Module):
     def __init__(self, emb_dim):
         super().__init__()
-        self.wq = nn.Linear(emb_dim, emb_dim)
-        self.wk = nn.Linear(emb_dim, emb_dim)
-        self.wv = nn.Linear(emb_dim, emb_dim)
+        # self.wq = nn.Linear(emb_dim, emb_dim)
+        # self.wk = nn.Linear(emb_dim, emb_dim)
+        # self.wv = nn.Linear(emb_dim, emb_dim)
+        self.wq = nn.Sequential(
+            nn.Linear(emb_dim, emb_dim),
+            nn.PReLU()
+        )
+        self.wk = nn.Sequential(
+            nn.Linear(emb_dim, emb_dim),
+            nn.PReLU()
+        )
+        self.wv = nn.Sequential(
+            nn.Linear(emb_dim, emb_dim),
+            nn.PReLU()
+        )
         self.emb_dim = emb_dim
 
     @torch.jit.export
@@ -70,14 +82,14 @@ class Attention(nn.Module):
 class sequenceModel(nn.Module):
     def __init__(self, step_input_size, hidden_size, sequence_size=SEQUENCE_SIZE):
         super().__init__()
-        self.lstm = nn.LSTM(input_size=step_input_size, hidden_size=hidden_size, num_layers=1,
+        self.lstm = nn.LSTM(input_size=step_input_size, hidden_size=hidden_size, num_layers=2,
                             batch_first=True)
         self.pre_bn = nn.BatchNorm1d(step_input_size)
         self.att = Attention(hidden_size)
 
-        _fc1 = nn.Linear(2 * sequence_size, int(hidden_size / 2))
+        _fc1 = nn.Linear(2 * sequence_size*hidden_size, hidden_size)
         # _fc1 = nn.Linear(hidden_size, int(hidden_size/2))
-        _fc2 = nn.Linear(int(hidden_size / 2), 4)
+        _fc2 = nn.Linear(hidden_size, 4)
         self.mlp = nn.Sequential(
             _fc1,
             nn.PReLU(),
@@ -92,7 +104,8 @@ class sequenceModel(nn.Module):
         x_seq_output, (hn, cn) = self.lstm(x)
         # x = self.mlp(x_seq_output[:, -1, :])
         x_att = self.att(x_seq_output)
-        x = torch.cat([x_seq_output.sum(2), x_att.sum(2)], 1)
+        # x = torch.cat([x_seq_output.sum(2), x_att.sum(2)], 1)
+        x = torch.cat([x_seq_output.flatten(start_dim=1), x_att.flatten(start_dim=1)], 1)
         x = self.mlp(x)
         # x = torch.transpose(hn, dim0=0, dim1=1).flatten(start_dim=1)
         return x
