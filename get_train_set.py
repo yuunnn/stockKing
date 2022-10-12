@@ -1,3 +1,5 @@
+import datetime
+
 import numpy as np
 import pandas as pd
 import os
@@ -77,4 +79,6 @@ if __name__ == '__main__':
     df = pd.read_sql_table('ma60m', engine)
     df['datetime'] = pd.to_datetime(df['datetime'])
     df = df[~df['stock_code'].str.startswith('sz30')]
-    get_label(df, './trainset/train_set_sample2.csv')
+    df = df[~df['stock_code'].str.startswith('sh68')]
+    dt = datetime.date.today().strftime('%Y%m%d')
+    get_label(df, './trainset/train_set{}.csv'.format(dt))
