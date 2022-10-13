@@ -10,12 +10,13 @@ warnings.filterwarnings("ignore")
 
 
 def get_data(_data, output_file):
-    with open(output_file, 'a') as f:
+    with open(output_file, 'w') as f:
         for sc in _data['stock_code'].unique():
             tmp = _data[_data['stock_code'] == sc].sort_values(by='datetime').reset_index().drop('index', axis=1)
             try:
-                _step = np.array(tmp.loc[range(20), ['open_price', 'high_price', 'low_price',
-                                                     'close_price', 'period_volume']]).reshape(1, -1).squeeze()
+                _step = np.array(tmp.loc[range(SEQUENCE_LENGTH),
+                                         ['open_price', 'high_price', 'low_price', 'close_price', 'period_volume']])\
+                    .reshape(1, -1).squeeze()
             except KeyError:
                 continue
             _step = np.append(_step, [sc])

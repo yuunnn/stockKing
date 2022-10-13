@@ -26,7 +26,7 @@ class PreprocessedDataset(Dataset):
         self.sequence_size = SEQUENCE_LENGTH
         columns = np.array([['open_price-{}'.format(i), 'high_price-{}'.format(i),
                              'low_price-{}'.format(i), 'close_price-{}'.format(i),
-                             'period_volume-{}'.format(i)] for i in range(20, 0, -1)]).reshape(1, -1).squeeze()
+                             'period_volume-{}'.format(i)] for i in range(SEQUENCE_LENGTH, 0, -1)]).reshape(1, -1).squeeze()
         if training:
             columns = np.append(columns, ['sc', 'label'])
         else:
@@ -45,7 +45,8 @@ class PreprocessedDataset(Dataset):
         if self.training:
             _label = torch.tensor(int(line.split(',')[-1]))
             return _data, _label
-        return _data
+        _sc = line.split(',')[-1]
+        return _data, _sc
 
 
 class DeviceDataLoader:
