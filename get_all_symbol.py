@@ -29,7 +29,7 @@ def load_all_quote_symbol():
                     code = 'sh' + code[2:]
                 elif code.find('sz') > -1:
                     code = 'sz' + code[2:]
-                if code.startswith('sz30') or code.startswith('sh68'):
+                if code.startswith('sz30') or code.startswith('sh68') or code.startswith('bj'):
                     continue
                 # convert quote code end
                 quote['Symbol'] = code

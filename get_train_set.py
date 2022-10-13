@@ -78,7 +78,6 @@ if __name__ == '__main__':
     engine = sqlalchemy.create_engine('sqlite:///{}'.format(os.path.join(database_path, 'StockKing.db')))
     df = pd.read_sql_table('ma60m', engine)
     df['datetime'] = pd.to_datetime(df['datetime'])
-    df = df[~df['stock_code'].str.startswith('sz30')]
-    df = df[~df['stock_code'].str.startswith('sh68')]
+    df = df[~df['datetime'].isin(sorted(df['datetime'].unique())[-4:])]
     dt = datetime.date.today().strftime('%Y%m%d')
     get_label(df, './trainset/train_set{}.csv'.format(dt))

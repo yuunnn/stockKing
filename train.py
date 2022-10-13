@@ -10,7 +10,7 @@ from tqdm import tqdm
 from utils import get_device, to_device
 
 warnings.filterwarnings('ignore')
-SEQUENCE_SIZE = 40
+SEQUENCE_SIZE = 20
 
 
 class PreprocessedDataset(Dataset):
@@ -128,8 +128,8 @@ class sequenceModel(nn.Module):
 
 
 def train(lr=0.001, batch_size=128, epoch=5):
-    # device = get_device()
-    device = 'cpu'
+    device = get_device()
+    # device = 'cpu'
     model = sequenceModel(5, 12).to(device)
     optim = Adam(model.parameters(), lr=lr)
     ts = int(time.time())

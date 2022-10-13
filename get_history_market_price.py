@@ -1,4 +1,6 @@
 import json
+import time
+
 import requests
 import pandas as pd
 import os
@@ -60,6 +62,7 @@ def get_market_price(_api, _symbols, _scale):
 
         data_to_sqlite('ma{}m'.format(scale), stock_ma_info, engine)
         print(k, symbol)
+        time.sleep(random.random() / 12)
         k += 1
 
 

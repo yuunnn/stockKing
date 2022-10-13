@@ -37,14 +37,14 @@ def get_market_price(_api, _symbols, _scale, _datalen):
     k = 0
     database_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database')
     engine = sqlalchemy.create_engine('sqlite:///{}'.format(os.path.join(database_path, 'StockKing.db')))
-    flag = 0
+    # flag = 0
     for symbol in _symbols:
 
         symbol = symbol['Symbol']
-        if 'bj' in symbol or flag == 0:
-            if symbol == 'sh601878':
-                flag = 1
-            continue
+        # if flag == 0:
+        #     if symbol == 'sh601878':
+        #         flag = 1
+        #     continue
         headers = requests_headers()
         try:
             r = requests.get(_api.format(symbol, _scale, _datalen), headers=headers, verify=True)
@@ -78,7 +78,7 @@ def data_to_sqlite(table, _data, engine):
 
 
 if __name__ == '__main__':
-    datalen = 4
+    datalen = 8
     scale = 60
     api_url = "https://quotes.sina.cn/cn/api/json_v2.php/" \
               "CN_MarketDataService.getKLineData?symbol={}&scale={}&ma=yes&datalen={}"
