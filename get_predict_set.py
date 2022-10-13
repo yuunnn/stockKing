@@ -4,6 +4,8 @@ import os
 import sqlalchemy
 import warnings
 
+from config import SEQUENCE_LENGTH
+
 warnings.filterwarnings("ignore")
 
 
@@ -27,5 +29,5 @@ if __name__ == '__main__':
     engine = sqlalchemy.create_engine('sqlite:///{}'.format(os.path.join(database_path, 'StockKing.db')))
     df = pd.read_sql_table('ma60m', engine)
     df['datetime'] = pd.to_datetime(df['datetime'])
-    df = df[df['datetime'].isin(sorted(df['datetime'].unique())[-20:])]
+    df = df[df['datetime'].isin(sorted(df['datetime'].unique())[-SEQUENCE_LENGTH:])]
     get_data(df, './predictset/latest.csv')

@@ -8,9 +8,9 @@ from torch.optim import Adam
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 from utils import get_device, to_device
+from config import SEQUENCE_LENGTH
 
 warnings.filterwarnings('ignore')
-SEQUENCE_SIZE = 40
 
 
 class PreprocessedDataset(Dataset):
@@ -23,7 +23,7 @@ class PreprocessedDataset(Dataset):
                 number += 1
         self.number = number
         self.fopen = open(data_path, 'r')
-        self.sequence_size = SEQUENCE_SIZE
+        self.sequence_size = SEQUENCE_LENGTH
         columns = np.array([['open_price-{}'.format(i), 'high_price-{}'.format(i),
                              'low_price-{}'.format(i), 'close_price-{}'.format(i),
                              'period_volume-{}'.format(i)] for i in range(20, 0, -1)]).reshape(1, -1).squeeze()
@@ -40,8 +40,8 @@ class PreprocessedDataset(Dataset):
 
     def __getitem__(self, index):
         line = self.fopen.__next__().strip()
-        _data = list(map(float, line.split(',')[:SEQUENCE_SIZE*self.input_size]))
-        _data = torch.tensor(_data).resize(SEQUENCE_SIZE, self.input_size)
+        _data = list(map(float, line.split(',')[:SEQUENCE_LENGTH*self.input_size]))
+        _data = torch.tensor(_data).resize(SEQUENCE_LENGTH, self.input_size)
         if self.training:
             _label = torch.tensor(int(line.split(',')[-1]))
             return _data, _label
@@ -96,7 +96,7 @@ class Attention(nn.Module):
 
 
 class sequenceModel(nn.Module):
-    def __init__(self, step_input_size, hidden_size, sequence_size=SEQUENCE_SIZE):
+    def __init__(self, step_input_size, hidden_size, sequence_size=SEQUENCE_LENGTH):
         super().__init__()
         self.lstm = nn.GRU(input_size=step_input_size, hidden_size=hidden_size, num_layers=1,
                            batch_first=True)

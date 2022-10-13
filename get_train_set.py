@@ -1,3 +1,4 @@
+from config import SEQUENCE_LENGTH
 import datetime
 
 import numpy as np
@@ -18,7 +19,7 @@ def get_bieo(x):
             i += 1
             continue
         try:
-            future_high_price = x.loc[range(i + 1, i + 41), 'close_price'].max()
+            future_high_price = x.loc[range(i + 1, i + SEQUENCE_LENGTH + 1), 'close_price'].max()
         except KeyError:
             future_high_price = x.loc[range(i + 1, x.index[-1] + 1), 'close_price'].max()
         future_high_price_index = x.loc[range(i + 1, x.index[-1] + 1)][x['close_price'] == future_high_price].index[0]
@@ -58,19 +59,20 @@ def get_label(_data, output_file):
 
     columns = np.array([['open_price-{}'.format(i), 'high_price-{}'.format(i),
                          'low_price-{}'.format(i), 'close_price-{}'.format(i),
-                         'period_volume-{}'.format(i)] for i in range(40, 0, -1)]).reshape(1, -1).squeeze()
+                         'period_volume-{}'.format(i)] for i in range(SEQUENCE_LENGTH, 0, -1)]).reshape(1, -1).squeeze()
     with open(output_file, 'a') as f:
 
         for sc in df_res['stock_code'].unique():
             tmp = df_res[df_res['stock_code'] == sc].sort_values(by='datetime').reset_index().drop('index', axis=1)
-            for i in tmp.index[40:]:
-                _step = np.array(tmp.loc[range(i - 40, i), ['open_price', 'high_price', 'low_price',
-                                                            'close_price', 'period_volume']]).reshape(1, -1).squeeze()
+            for i in tmp.index[SEQUENCE_LENGTH:]:
+                _step = np.array(tmp.loc[range(i - SEQUENCE_LENGTH, i),
+                                         ['open_price', 'high_price', 'low_price', 'close_price', 'period_volume']]) \
+                    .reshape(1, -1).squeeze()
                 _step = np.append(_step, [sc, tmp.loc[i, 'label']])
                 f.write(','.join(_step))
                 f.write('\n')
-                
-    return 
+
+    return
 
 
 if __name__ == '__main__':
