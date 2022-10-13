@@ -10,7 +10,7 @@ from tqdm import tqdm
 from utils import get_device, to_device
 
 warnings.filterwarnings('ignore')
-SEQUENCE_SIZE = 20
+SEQUENCE_SIZE = 40
 
 
 class PreprocessedDataset(Dataset):
@@ -98,7 +98,7 @@ class Attention(nn.Module):
 class sequenceModel(nn.Module):
     def __init__(self, step_input_size, hidden_size, sequence_size=SEQUENCE_SIZE):
         super().__init__()
-        self.lstm = nn.GRU(input_size=step_input_size, hidden_size=hidden_size, num_layers=2,
+        self.lstm = nn.GRU(input_size=step_input_size, hidden_size=hidden_size, num_layers=1,
                            batch_first=True)
         self.pre_bn = nn.BatchNorm1d(step_input_size)
         self.att = Attention(hidden_size)

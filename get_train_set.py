@@ -22,7 +22,7 @@ def get_bieo(x):
         except KeyError:
             future_high_price = x.loc[range(i + 1, x.index[-1] + 1), 'close_price'].max()
         future_high_price_index = x.loc[range(i + 1, x.index[-1] + 1)][x['close_price'] == future_high_price].index[0]
-        if future_high_price / current_price >= 1.2:
+        if future_high_price / current_price >= 1.22:
             x.loc[i, 'label'] = 1
             x.loc[future_high_price_index, 'label'] = 3
             x.loc[range(i + 1, future_high_price_index), 'label'] = 2
