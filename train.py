@@ -7,13 +7,14 @@ from torch import nn
 from torch.optim import Adam
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
+from utils import get_device, to_device
 
 warnings.filterwarnings('ignore')
-SEQUENCE_SIZE = 20
+SEQUENCE_SIZE = 40
 
 
 class PreprocessedDataset(Dataset):
-    def __init__(self, data_path, training=True):
+    def __init__(self, data_path, training=True, input_size=5):
 
         number = 0
         with open(data_path, "r") as f:
@@ -32,18 +33,32 @@ class PreprocessedDataset(Dataset):
             columns = np.append(columns, ['sc'])
         self.columns = columns
         self.training = training
+        self.input_size = input_size
 
     def __len__(self):
         return self.number
 
     def __getitem__(self, index):
         line = self.fopen.__next__().strip()
-        _data = list(map(float, line.split(',')[:100]))
-        _data = torch.tensor(_data).resize(20, 5)
+        _data = list(map(float, line.split(',')[:SEQUENCE_SIZE*self.input_size]))
+        _data = torch.tensor(_data).resize(SEQUENCE_SIZE, self.input_size)
         if self.training:
             _label = torch.tensor(int(line.split(',')[-1]))
             return _data, _label
         return _data
+
+
+class DeviceDataLoader:
+    def __init__(self, data_loader, device):
+        self.dl = data_loader
+        self.device = device
+
+    def __iter__(self):
+        for batch in self.dl:
+            yield to_device(batch, self.device)
+
+    def __len__(self):
+        return len(self.dl)
 
 
 class Attention(nn.Module):
@@ -72,22 +87,23 @@ class Attention(nn.Module):
         kx = self.wk(x)
         vx = self.wv(x)
 
-        qk = torch.matmul(qx, kx.transpose(dim0=1, dim1=2)) / (self.emb_dim**0.5)
+        qk = torch.matmul(qx, kx.transpose(dim0=1, dim1=2)) / (self.emb_dim ** 0.5)
         qk_softmax = torch.softmax(qk, dim=2)
 
-        qkv = torch.einsum('tab,tbc -> tac', qk_softmax, vx)
+        # qkv = torch.einsum('tab,tbc -> tac', qk_softmax, vx)
+        qkv = torch.matmul(qk_softmax, vx)
         return qkv
 
 
 class sequenceModel(nn.Module):
     def __init__(self, step_input_size, hidden_size, sequence_size=SEQUENCE_SIZE):
         super().__init__()
-        self.lstm = nn.LSTM(input_size=step_input_size, hidden_size=hidden_size, num_layers=2,
-                            batch_first=True)
+        self.lstm = nn.GRU(input_size=step_input_size, hidden_size=hidden_size, num_layers=2,
+                           batch_first=True)
         self.pre_bn = nn.BatchNorm1d(step_input_size)
         self.att = Attention(hidden_size)
 
-        _fc1 = nn.Linear(2 * sequence_size*hidden_size, hidden_size)
+        _fc1 = nn.Linear(2 * sequence_size * hidden_size, hidden_size)
         # _fc1 = nn.Linear(hidden_size, int(hidden_size/2))
         _fc2 = nn.Linear(hidden_size, 4)
         self.mlp = nn.Sequential(
@@ -101,7 +117,7 @@ class sequenceModel(nn.Module):
         x = torch.transpose(x, dim0=1, dim1=2)
         x = self.pre_bn(x)
         x = torch.transpose(x, dim0=1, dim1=2)
-        x_seq_output, (hn, cn) = self.lstm(x)
+        x_seq_output, hn = self.lstm(x)
         # x = self.mlp(x_seq_output[:, -1, :])
         x_att = self.att(x_seq_output)
         # x = torch.cat([x_seq_output.sum(2), x_att.sum(2)], 1)
@@ -112,7 +128,9 @@ class sequenceModel(nn.Module):
 
 
 def train(lr=0.001, batch_size=128, epoch=5):
-    model = sequenceModel(5, 12)
+    # device = get_device()
+    device = 'cpu'
+    model = sequenceModel(5, 12).to(device)
     optim = Adam(model.parameters(), lr=lr)
     ts = int(time.time())
     ce = nn.CrossEntropyLoss()
@@ -123,6 +141,7 @@ def train(lr=0.001, batch_size=128, epoch=5):
             if len(file.split('.')) == 1:
                 _dataset = PreprocessedDataset(os.path.join('./trainset', file))
                 loader = DataLoader(_dataset, batch_size=batch_size, shuffle=True)
+                loader = DeviceDataLoader(loader, device)
                 pbar = tqdm(loader)
                 pbar.set_description("[Epoch {}, File {}]".format(e, file))
                 for _data, _label in pbar:
