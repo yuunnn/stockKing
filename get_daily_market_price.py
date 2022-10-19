@@ -78,7 +78,7 @@ def data_to_sqlite(table, _data, engine):
 
 
 if __name__ == '__main__':
-    datalen = 4
+    datalen = 8
     scale = 60
     api_url = "https://quotes.sina.cn/cn/api/json_v2.php/" \
               "CN_MarketDataService.getKLineData?symbol={}&scale={}&ma=yes&datalen={}"

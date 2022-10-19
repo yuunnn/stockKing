@@ -68,4 +68,4 @@ if __name__ == '__main__':
     export_path = './database'
     data_export(export_path, all_quotes, file_name='symbols')
     database_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database')
-    data_to_sqlite(database_path, 'StockKing.db', 'company_info', all_quotes)
+    # data_to_sqlite(database_path, 'StockKing.db', 'company_info', all_quotes)
