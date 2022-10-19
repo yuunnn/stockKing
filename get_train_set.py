@@ -14,7 +14,7 @@ def get_bieo(x):
     i = x.index[0]
     while i < x.index[-1]:
         current_price = x.loc[i, 'high_price']
-        next_current_price = x.loc[i + 1, 'high_price']
+        next_current_price = x.loc[i + 1, 'close_price']
         if current_price >= next_current_price:
             i += 1
             continue

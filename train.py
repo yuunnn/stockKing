@@ -128,7 +128,7 @@ class sequenceModel(nn.Module):
         return x
 
 
-def train(lr=0.001, batch_size=128, epoch=5):
+def train(lr=0.001, batch_size=128, epoch=8):
     device = get_device()
     # device = 'cpu'
     model = sequenceModel(5, 12).to(device)
