@@ -5,5 +5,5 @@ CREATE TABLE company_info(
          introduction TEXT,
          business_scope TEXT,
          employees INT,
-         main_bussiness TEXT
+         main_business TEXT
       );
