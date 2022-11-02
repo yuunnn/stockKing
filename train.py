@@ -8,7 +8,7 @@ from torch.optim import Adam
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 from utils import get_device, to_device
-from config import SEQUENCE_LENGTH
+from config import SEQUENCE_LENGTH, EMB_DIM
 
 warnings.filterwarnings('ignore')
 
@@ -26,11 +26,12 @@ class PreprocessedDataset(Dataset):
         self.sequence_size = SEQUENCE_LENGTH
         columns = np.array([['open_price-{}'.format(i), 'high_price-{}'.format(i),
                              'low_price-{}'.format(i), 'close_price-{}'.format(i),
-                             'period_volume-{}'.format(i)] for i in range(SEQUENCE_LENGTH, 0, -1)]).reshape(1, -1).squeeze()
+                             'period_volume-{}'.format(i)] for i in range(SEQUENCE_LENGTH, 0, -1)]).reshape(1,
+                                                                                                            -1).squeeze()
         if training:
-            columns = np.append(columns, ['sc', 'label'])
+            columns = np.append(columns, ['sc', 'indices', 'industry', 'label'])
         else:
-            columns = np.append(columns, ['sc'])
+            columns = np.append(columns, ['sc', 'indices', 'industry'])
         self.columns = columns
         self.training = training
         self.input_size = input_size
@@ -40,13 +41,38 @@ class PreprocessedDataset(Dataset):
 
     def __getitem__(self, index):
         line = self.fopen.__next__().strip()
-        _data = list(map(float, line.split(',')[:SEQUENCE_LENGTH*self.input_size]))
+        _data = list(map(float, line.split(',')[:SEQUENCE_LENGTH * self.input_size]))
         _data = torch.tensor(_data).resize(SEQUENCE_LENGTH, self.input_size)
         if self.training:
+            _indices = list(map(int, line.split(',')[-3].split('-')))
+            _indices_len = len(_indices)
+            tmp = 30 - _indices_len
+            tmp = [0] * tmp
+            _mask = [1] * _indices_len + tmp
+            _indices = _indices + tmp
+            _indices = torch.tensor(_indices)
+            _mask = torch.tensor(_mask)
+            _industry = torch.tensor(int(line.split(',')[-2]))
+
             _label = torch.tensor(int(line.split(',')[-1]))
-            return _data, _label
-        _sc = line.split(',')[-1]
-        return _data, _sc
+            return _data, _indices, _mask, _industry, _label
+
+        _indices = list(map(int, line.split(',')[-2].split('-')))
+        _indices_len = len(_indices)
+        tmp = 30 - _indices_len
+        tmp = [0] * tmp
+        _mask = [1] * _indices_len + tmp
+        _indices = _indices + tmp
+        _indices = torch.tensor(_indices)
+        _mask = torch.tensor(_mask)
+        _industry = torch.tensor(int(line.split(',')[-1]))
+
+        _sc = line.split(',')[-3]
+        try:
+            print(_data.shape,_indices.shape,_mask.shape, _industry.shape)
+        except:
+            pass
+        return _data, _indices, _mask, _industry, _sc
 
 
 class DeviceDataLoader:
@@ -104,7 +130,10 @@ class sequenceModel(nn.Module):
         self.pre_bn = nn.BatchNorm1d(step_input_size)
         self.att = Attention(hidden_size)
 
-        _fc1 = nn.Linear(2 * sequence_size * hidden_size, hidden_size)
+        self.indices_emb = nn.Embedding(100, EMB_DIM)
+        self.industry_emb = nn.Embedding(100, EMB_DIM)
+
+        _fc1 = nn.Linear(2 * sequence_size * hidden_size+EMB_DIM*2, hidden_size)
         # _fc1 = nn.Linear(hidden_size, int(hidden_size/2))
         _fc2 = nn.Linear(hidden_size, 4)
         self.mlp = nn.Sequential(
@@ -114,7 +143,11 @@ class sequenceModel(nn.Module):
             # nn.Softmax()
         )
 
-    def forward(self, x):
+    def forward(self, x, x_indices, x_mask, x_indusry):
+        x_indices = self.indices_emb(x_indices)
+        x_indices = torch.einsum('abc,ab->abc', x_indices, x_mask).sum(1)
+        x_indusry = self.industry_emb(x_indusry)
+
         x = torch.transpose(x, dim0=1, dim1=2)
         x = self.pre_bn(x)
         x = torch.transpose(x, dim0=1, dim1=2)
@@ -122,7 +155,7 @@ class sequenceModel(nn.Module):
         # x = self.mlp(x_seq_output[:, -1, :])
         x_att = self.att(x_seq_output)
         # x = torch.cat([x_seq_output.sum(2), x_att.sum(2)], 1)
-        x = torch.cat([x_seq_output.flatten(start_dim=1), x_att.flatten(start_dim=1)], 1)
+        x = torch.cat([x_seq_output.flatten(start_dim=1), x_att.flatten(start_dim=1), x_indices, x_indusry], 1)
         x = self.mlp(x)
         # x = torch.transpose(hn, dim0=0, dim1=1).flatten(start_dim=1)
         return x
@@ -145,8 +178,8 @@ def train(lr=0.001, batch_size=128, epoch=8):
                 loader = DeviceDataLoader(loader, device)
                 pbar = tqdm(loader)
                 pbar.set_description("[Epoch {}, File {}]".format(e, file))
-                for _data, _label in pbar:
-                    softmax_res = model(_data)
+                for _data, _indices, _mask, _indusry, _label in pbar:
+                    softmax_res = model(_data, _indices, _mask, _indusry)
                     # loss = -torch.take(softmax_res, _label).log().sum()
                     loss = ce(softmax_res, _label)
                     total_loss += loss.item()

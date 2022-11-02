@@ -1,4 +1,5 @@
 from config import SEQUENCE_LENGTH
+from functools import reduce
 import datetime
 
 import numpy as np
@@ -33,16 +34,20 @@ def get_bieo(x):
     return x
 
 
-def get_label(_data, output_file):
+def get_label(_data, output_file, basic_info=None):
     _data['label'] = 0
     df_res = []
     for sc in _data['stock_code'].unique():
         tmp = _data[_data['stock_code'] == sc].sort_values(by='datetime').reset_index().drop('index', axis=1)
         tmp = get_bieo(tmp)
         df_res.append(tmp)
+        break
 
     df_res = pd.concat(df_res)
     df_res = df_res.reset_index().drop('index', axis=1)
+    if basic_info is not None:
+        df_res = pd.merge(df_res, basic_info[['stock_code', 'indices', 'industry']], on='stock_code', how='left')
+        df_res = df_res.fillna('99')
 
     for i in df_res.index[:-1]:
         if df_res.loc[i + 1, 'close_price'] >= df_res.loc[i, 'close_price'] and \
@@ -68,7 +73,13 @@ def get_label(_data, output_file):
                 _step = np.array(tmp.loc[range(i - SEQUENCE_LENGTH, i),
                                          ['open_price', 'high_price', 'low_price', 'close_price', 'period_volume']]) \
                     .reshape(1, -1).squeeze()
-                _step = np.append(_step, [sc, tmp.loc[i, 'label']])
+                if basic_info is not None:
+                    emb = tmp.loc[i, ['indices', 'industry', 'label']].astype(str)
+                    if len(emb) == 0:
+                        continue
+                    _step = np.append(np.append(_step, sc), emb)
+                else:
+                    _step = np.append(_step, [sc, tmp.loc[i, 'label']])
                 f.write(','.join(_step))
                 f.write('\n')
 
@@ -82,4 +93,5 @@ if __name__ == '__main__':
     df['datetime'] = pd.to_datetime(df['datetime'])
     df = df[~df['datetime'].isin(sorted(df['datetime'].unique())[-4:])]
     dt = datetime.date.today().strftime('%Y%m%d')
-    get_label(df, './trainset/train_set{}.csv'.format(dt))
+    emb_info = pd.read_sql_table('emb_info', engine)
+    get_label(df, './trainset/train_set{}.csv'.format(dt), emb_info)

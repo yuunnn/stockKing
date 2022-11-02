@@ -1,3 +1,5 @@
+from functools import reduce
+
 import requests
 import json
 import timeit
@@ -39,9 +41,33 @@ def get_company_info_from_tushare():
 def get_company_info_from_akshare(symbols):
     res = []
     for s in symbols:
-        stock_profile_cninfo_df = ak.stock_profile_cninfo(symbol=s[2:])
-        res.append(stock_profile_cninfo_df)
+        try:
+            stock_profile_cninfo_df = ak.stock_profile_cninfo(symbol=s[2:])
+            res.append(stock_profile_cninfo_df)
+        except Exception:
+            continue
     return pd.concat(res)
+
+
+def get_basic_info(export_path, database, table):
+    engine = sqlalchemy.create_engine('sqlite:///{}'.format(os.path.join(export_path, database)))
+
+    df = pd.read_sql_table('company_info_basic', engine)
+    df['indices'] = df['indices'].fillna('-1')
+    indices = df['indices'].unique().tolist()
+    f = lambda x, y: x + y
+    indices = list(set(list(reduce(f, [i.split(',') for i in indices]))))
+    indices = {k: i for i, k in enumerate(indices)}
+    df['indices'] = df['indices'].apply(lambda x: x.split(','))
+    df['indices'] = df['indices'].apply(lambda x: '-'.join([str(indices[i]) for i in x]))
+
+    df['industry'] = df['industry'].fillna('01')
+    industry = df['industry'].unique().tolist()
+    industry = {k: i for i, k in enumerate(industry)}
+    df['industry'] = df['industry'].apply(lambda x: industry[x])
+    df[['stock_code', 'indices', 'industry']].to_sql(table, engine, if_exists='replace')
+
+    return df
 
 
 def data_to_sqlite(export_path, database, table, all_quotes):
@@ -73,3 +99,5 @@ if __name__ == "__main__":
     df.columns = ['name', 'stock_code', 'used_abbr', 'abbr', 'indices', 'industry', 'setup_date', 'listing_date',
                   'website', 'email', 'main_business', 'business_scope', 'introduction']
     data_to_sqlite(database_path, 'StockKing.db', 'company_info_basic', df)
+
+    get_basic_info(database_path, 'StockKing.db', 'emb_info')
