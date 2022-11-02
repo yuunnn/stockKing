@@ -52,7 +52,7 @@ class PreprocessedDataset(Dataset):
             _indices = _indices + tmp
             _indices = torch.tensor(_indices)
             _mask = torch.tensor(_mask)
-            _industry = torch.tensor(int(line.split(',')[-2]))
+            _industry = torch.tensor(int(line.split(',')[-2].replace('.0', '')))
 
             _label = torch.tensor(int(line.split(',')[-1]))
             return _data, _indices, _mask, _industry, _label
@@ -68,10 +68,6 @@ class PreprocessedDataset(Dataset):
         _industry = torch.tensor(int(line.split(',')[-1]))
 
         _sc = line.split(',')[-3]
-        try:
-            print(_data.shape,_indices.shape,_mask.shape, _industry.shape)
-        except:
-            pass
         return _data, _indices, _mask, _industry, _sc
 
 
