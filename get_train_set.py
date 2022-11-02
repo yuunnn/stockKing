@@ -41,7 +41,6 @@ def get_label(_data, output_file, basic_info=None):
         tmp = _data[_data['stock_code'] == sc].sort_values(by='datetime').reset_index().drop('index', axis=1)
         tmp = get_bieo(tmp)
         df_res.append(tmp)
-        break
 
     df_res = pd.concat(df_res)
     df_res = df_res.reset_index().drop('index', axis=1)
