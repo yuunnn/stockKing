@@ -73,7 +73,7 @@ def get_label(_data, output_file, basic_info=None):
                                          ['open_price', 'high_price', 'low_price', 'close_price', 'period_volume']]) \
                     .reshape(1, -1).squeeze()
                 if basic_info is not None:
-                    emb = tmp.loc[i, ['indices', 'industry', 'label']].astype(int).astype(str)
+                    emb = tmp.loc[i, ['indices', 'industry', 'label']].astype(str)
                     if len(emb) == 0:
                         continue
                     _step = np.append(np.append(_step, sc), emb)
