@@ -121,7 +121,7 @@ class Attention(nn.Module):
 class sequenceModel(nn.Module):
     def __init__(self, step_input_size, hidden_size, sequence_size=SEQUENCE_LENGTH):
         super().__init__()
-        self.lstm = nn.GRU(input_size=step_input_size, hidden_size=hidden_size, num_layers=1,
+        self.lstm = nn.GRU(input_size=step_input_size, hidden_size=hidden_size, num_layers=2,
                            batch_first=True)
         self.pre_bn = nn.BatchNorm1d(step_input_size)
         self.att = Attention(hidden_size)
@@ -129,9 +129,9 @@ class sequenceModel(nn.Module):
         self.indices_emb = nn.Embedding(100, EMB_DIM)
         self.industry_emb = nn.Embedding(100, EMB_DIM)
 
-        _fc1 = nn.Linear(2 * sequence_size * hidden_size+EMB_DIM*2, hidden_size)
-        # _fc1 = nn.Linear(hidden_size, int(hidden_size/2))
-        _fc2 = nn.Linear(hidden_size, 4)
+        # _fc1 = nn.Linear(2 * sequence_size * hidden_size + EMB_DIM * 2, hidden_size*2)
+        _fc1 = nn.Linear(sequence_size * hidden_size + hidden_size + EMB_DIM * 2, hidden_size * 2)
+        _fc2 = nn.Linear(hidden_size*2, 4)
         self.mlp = nn.Sequential(
             _fc1,
             nn.PReLU(),
@@ -150,8 +150,8 @@ class sequenceModel(nn.Module):
         x_seq_output, hn = self.lstm(x)
         # x = self.mlp(x_seq_output[:, -1, :])
         x_att = self.att(x_seq_output)
-        # x = torch.cat([x_seq_output.sum(2), x_att.sum(2)], 1)
-        x = torch.cat([x_seq_output.flatten(start_dim=1), x_att.flatten(start_dim=1), x_indices, x_indusry], 1)
+        # x = torch.cat([x_seq_output.flatten(start_dim=1), x_att.flatten(start_dim=1), x_indices, x_indusry], 1)
+        x = torch.cat([hn[1], x_att.flatten(start_dim=1), x_indices, x_indusry], 1)
         x = self.mlp(x)
         # x = torch.transpose(hn, dim0=0, dim1=1).flatten(start_dim=1)
         return x

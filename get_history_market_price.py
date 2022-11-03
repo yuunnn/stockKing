@@ -35,12 +35,20 @@ def requests_headers():
     return headers
 
 
-def get_market_price(_api, _symbols, _scale):
+def get_market_price(_api, _symbols, _scale, _breakpoint=None):
     k = 0
+    flag = 0
     database_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database')
     engine = sqlalchemy.create_engine('sqlite:///{}'.format(os.path.join(database_path, 'StockKing.db')))
     for symbol in _symbols:
         symbol = symbol['Symbol']
+        if _breakpoint is not None and flag == 0:
+            if symbol == _breakpoint:
+                flag = 1
+                continue
+            else:
+                continue
+
         if 'bj' in symbol:
             continue
         headers = requests_headers()
