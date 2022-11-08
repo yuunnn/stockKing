@@ -136,7 +136,6 @@ class sequenceModel(nn.Module):
             _fc1,
             nn.PReLU(),
             _fc2
-            # nn.Softmax()
         )
 
     def forward(self, x, x_indices, x_mask, x_indusry):
@@ -148,7 +147,6 @@ class sequenceModel(nn.Module):
         x = self.pre_bn(x)
         x = torch.transpose(x, dim0=1, dim1=2)
         x_seq_output, hn = self.lstm(x)
-        # x = self.mlp(x_seq_output[:, -1, :])
         x_att = self.att(x_seq_output)
         # x = torch.cat([x_seq_output.flatten(start_dim=1), x_att.flatten(start_dim=1), x_indices, x_indusry], 1)
         x = torch.cat([hn[1], x_att.flatten(start_dim=1), x_indices, x_indusry], 1)
@@ -176,7 +174,6 @@ def train(lr=0.001, batch_size=128, epoch=8):
                 pbar.set_description("[Epoch {}, File {}]".format(e, file))
                 for _data, _indices, _mask, _indusry, _label in pbar:
                     softmax_res = model(_data, _indices, _mask, _indusry)
-                    # loss = -torch.take(softmax_res, _label).log().sum()
                     loss = ce(softmax_res, _label)
                     total_loss += loss.item()
                     optim.zero_grad()

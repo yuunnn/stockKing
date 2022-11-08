@@ -1,4 +1,4 @@
-from config import SEQUENCE_LENGTH
+from config import SEQUENCE_LENGTH, FUTURE_CHANCE_LENGTH
 from functools import reduce
 import datetime
 
@@ -10,17 +10,16 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-
 def get_bieo(x):
     i = x.index[0]
     while i < x.index[-1]:
         current_price = x.loc[i, 'high_price']
         next_current_price = x.loc[i + 1, 'close_price']
-        if current_price >= next_current_price:
+        if (current_price / next_current_price) >= 0.99:
             i += 1
             continue
         try:
-            future_high_price = x.loc[range(i + 1, i + SEQUENCE_LENGTH + 1), 'close_price'].max()
+            future_high_price = x.loc[range(i + 1, i + FUTURE_CHANCE_LENGTH + 1), 'close_price'].max()
         except KeyError:
             future_high_price = x.loc[range(i + 1, x.index[-1] + 1), 'close_price'].max()
         future_high_price_index = x.loc[range(i + 1, x.index[-1] + 1)][x['close_price'] == future_high_price].index[0]
@@ -90,7 +89,7 @@ if __name__ == '__main__':
     engine = sqlalchemy.create_engine('sqlite:///{}'.format(os.path.join(database_path, 'StockKing.db')))
     df = pd.read_sql_table('ma60m', engine)
     df['datetime'] = pd.to_datetime(df['datetime'])
-    df = df[~df['datetime'].isin(sorted(df['datetime'].unique())[-4:])]
+    df = df[~df['datetime'].isin(sorted(df['datetime'].unique())[-16:])]
     dt = datetime.date.today().strftime('%Y%m%d')
     emb_info = pd.read_sql_table('emb_info', engine)
     get_label(df, './trainset/train_set{}.csv'.format(dt), emb_info)
