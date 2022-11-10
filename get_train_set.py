@@ -7,8 +7,8 @@ import pandas as pd
 import os
 import sqlalchemy
 import warnings
-
 warnings.filterwarnings("ignore")
+
 
 def get_bieo(x):
     i = x.index[0]
