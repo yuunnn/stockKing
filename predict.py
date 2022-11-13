@@ -19,22 +19,22 @@ warnings.filterwarnings('ignore')
 def predict(model_file, predicts_file):
     device = get_device()
     model = torch.load(model_file).to(device)
-    _dataset = PreprocessedDataset(predicts_file, training=False)
+    _dataset = PreprocessedDataset(predicts_file, training=False, input_size=10)
     loader = DataLoader(_dataset, batch_size=32)
     loader = DeviceDataLoader(loader, device)
 
     pbar = tqdm(loader)
     stocks = []
     res = []
-    for _data, _indices, _mask, _indusry, sc in pbar:
-        softmax_res = nn.Softmax()(model(_data, _indices, _mask, _indusry))
+    for _data, _indices, _mask, _indusry, _hour, sc in pbar:
+        softmax_res = nn.Softmax()(model(_data, _indices, _mask, _indusry, _hour))
         stocks.append(sc)
         res.append(softmax_res)
     return torch.cat(res).cpu(), np.concatenate(stocks)
 
 
 if __name__ == "__main__":
-    probs, stock_codes = predict('./models/model_1667836398.pkl', './predictset/latest.csv')
+    probs, stock_codes = predict('./models/model_1668278886.pkl', './predictset/latest.csv')
     df = pd.DataFrame(probs.detach().numpy())
     df.columns = ['观望', '买入', '持有', '卖出']
     df['code'] = stock_codes
