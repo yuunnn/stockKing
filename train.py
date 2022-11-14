@@ -1,4 +1,5 @@
 import os
+import subprocess
 import time
 import warnings
 import numpy as np
@@ -153,7 +154,7 @@ class sequenceModel(nn.Module):
 def train(lr=0.001, batch_size=128, epoch=8):
     device = get_device()
     # device = 'cpu'
-    model = sequenceModel(10, 12).to(device)
+    model = sequenceModel(12, 12).to(device)
     optim = Adam(model.parameters(), lr=lr)
     ts = int(time.time())
     ce = nn.CrossEntropyLoss()
@@ -162,8 +163,10 @@ def train(lr=0.001, batch_size=128, epoch=8):
         batch_count = 1
         for file in os.listdir('./trainset'):
             if len(file.split('.')) == 1:
-                _dataset = PreprocessedDataset(os.path.join('./trainset', file), input_size=10)
-                loader = DataLoader(_dataset, batch_size=batch_size, shuffle=True)
+                file = os.path.join('./trainset', file)
+                subprocess.run(f"shuf {file} -o {file}", shell=True)
+                _dataset = PreprocessedDataset(file, input_size=12)
+                loader = DataLoader(_dataset, batch_size=batch_size)
                 loader = DeviceDataLoader(loader, device)
                 pbar = tqdm(loader)
                 pbar.set_description("[Epoch {}, File {}]".format(e, file))
