@@ -154,7 +154,7 @@ class sequenceModel(nn.Module):
 def train(lr=0.001, batch_size=128, epoch=8):
     device = get_device()
     # device = 'cpu'
-    model = sequenceModel(12, 12).to(device)
+    model = sequenceModel(12, 10).to(device)
     optim = Adam(model.parameters(), lr=lr)
     ts = int(time.time())
     ce = nn.CrossEntropyLoss()
