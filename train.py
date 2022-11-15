@@ -9,7 +9,7 @@ from torch.optim import Adam
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 from utils import get_device, to_device
-from config import SEQUENCE_LENGTH, EMB_DIM
+from config import SEQUENCE_LENGTH, EMB_DIM, INPUT_SIZE
 
 warnings.filterwarnings('ignore')
 
@@ -125,8 +125,8 @@ class sequenceModel(nn.Module):
         self.hour_emb = nn.Embedding(4, EMB_DIM)
 
         # _fc1 = nn.Linear(2 * sequence_size * hidden_size + EMB_DIM * 2, hidden_size*2)
-        _fc1 = nn.Linear(sequence_size * hidden_size + hidden_size + EMB_DIM * 3, hidden_size * 2)
-        _fc2 = nn.Linear(hidden_size*2, 4)
+        _fc1 = nn.Linear(sequence_size * hidden_size + hidden_size + EMB_DIM * 3, hidden_size * 3)
+        _fc2 = nn.Linear(hidden_size*3, 4)
         self.mlp = nn.Sequential(
             _fc1,
             nn.PReLU(),
@@ -154,7 +154,7 @@ class sequenceModel(nn.Module):
 def train(lr=0.001, batch_size=128, epoch=8):
     device = get_device()
     # device = 'cpu'
-    model = sequenceModel(12, 10).to(device)
+    model = sequenceModel(INPUT_SIZE, 12).to(device)
     optim = Adam(model.parameters(), lr=lr)
     ts = int(time.time())
     ce = nn.CrossEntropyLoss()
@@ -165,7 +165,7 @@ def train(lr=0.001, batch_size=128, epoch=8):
             if len(file.split('.')) == 1:
                 file = os.path.join('./trainset', file)
                 subprocess.run(f"shuf {file} -o {file}", shell=True)
-                _dataset = PreprocessedDataset(file, input_size=12)
+                _dataset = PreprocessedDataset(file, input_size=INPUT_SIZE)
                 loader = DataLoader(_dataset, batch_size=batch_size)
                 loader = DeviceDataLoader(loader, device)
                 pbar = tqdm(loader)

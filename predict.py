@@ -10,7 +10,7 @@ from torch.optim import Adam
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 from train import sequenceModel, Attention, PreprocessedDataset, DeviceDataLoader
-from config import SEQUENCE_LENGTH
+from config import SEQUENCE_LENGTH, INPUT_SIZE
 from utils import get_device
 
 warnings.filterwarnings('ignore')
@@ -19,7 +19,7 @@ warnings.filterwarnings('ignore')
 def predict(model_file, predicts_file):
     device = get_device()
     model = torch.load(model_file).to(device)
-    _dataset = PreprocessedDataset(predicts_file, training=False, input_size=12)
+    _dataset = PreprocessedDataset(predicts_file, training=False, input_size=INPUT_SIZE)
     loader = DataLoader(_dataset, batch_size=32)
     loader = DeviceDataLoader(loader, device)
 
@@ -34,7 +34,7 @@ def predict(model_file, predicts_file):
 
 
 if __name__ == "__main__":
-    probs, stock_codes = predict('./models/model_1668438950.pkl', './predictset/latest.csv')
+    probs, stock_codes = predict('./models/model_1668496212.pkl', './predictset/latest.csv')
     df = pd.DataFrame(probs.detach().numpy())
     df.columns = ['观望', '买入', '持有', '卖出']
     df['code'] = stock_codes

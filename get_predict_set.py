@@ -45,15 +45,16 @@ def get_alpha(x):
     # do not shift 1
     x['ma15day'] = x.groupby(['stock_code'])['ma'].rolling(60).mean().reset_index()['ma']
     x['volume_15day'] = x.groupby(['stock_code'])['period_volume'].rolling(60).mean().reset_index()['period_volume']
-    x['volume_ts_15'] = x.groupby(['stock_code'])['period_volume'].rolling(15).apply(
-        lambda a: ts_rank(a, 15)).reset_index()['period_volume']
+    # x['volume_ts_15'] = x.groupby(['stock_code'])['period_volume'].rolling(60).apply(
+    #     lambda a: ts_rank(a, 60)).reset_index()['period_volume']
     x = x.dropna()
     x['ma_change_rate'] = x['ma_change'] / x['ma']
     x['ma_change_rate_rank'] = x.groupby(['datetime'])[['ma_change_rate']].rank()
     x['double_ma_rate'] = x['ma'] / x['ma15day']
     x['double_ma_rate_rank'] = x.groupby(['datetime'])[['double_ma_rate']].rank()
-    x['volume_change_15day'] = x['period_volume'] / x['volume_15day']
-    x['volume_change_15day_rank'] = x.groupby(['datetime'])[['volume_change_15day']].rank()
+    x['double_v_rate'] = x['period_volume'] / x['volume_15day']
+    # x['volume_change_15day'] = x['period_volume'] / x['volume_15day']
+    # x['volume_change_15day_rank'] = x.groupby(['datetime'])[['volume_change_15day']].rank()
 
     # ['ma', 'ma_change', 'ma15day', 'ma_change_rate', 'ma_change_rate_rank', 'double_ma_rate', 'double_ma_rate_rank',
     # volume_rate_rank, 'volume_change_15day', 'volume_change_15day_rank', 'volume_ts_15]
@@ -67,10 +68,9 @@ def get_data(_data, output_file, basic_info=None):
             try:
                 _step = np.array(tmp.loc[range(SEQUENCE_LENGTH),
                                          ['open_price', 'high_price', 'low_price', 'close_price', 'period_volume',
-                                          'ma_change_rate', 'ma_change_rate_rank', 'double_ma_rate', 'volume_ts_15',
-                                          'double_ma_rate_rank', 'volume_change_15day', 'volume_change_15day_rank'
-                                          ]]) \
-                    .reshape(1, -1).squeeze()
+                                          'ma_change_rate', 'ma_change_rate_rank', 'double_ma_rate', 'double_v_rate',
+                                          'double_ma_rate_rank'
+                                          ]]).reshape(1, -1).squeeze()
             except KeyError:
                 continue
             if basic_info is not None:
