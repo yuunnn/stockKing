@@ -45,9 +45,7 @@ def get_market_price(_api, _symbols, _scale, _breakpoint=None):
         if _breakpoint is not None and flag == 0:
             if symbol == _breakpoint:
                 flag = 1
-                continue
-            else:
-                continue
+            continue
 
         if 'bj' in symbol:
             continue
@@ -80,7 +78,7 @@ def data_to_sqlite(table, _data, engine):
 
 if __name__ == '__main__':
     api_url = "https://quotes.sina.cn/cn/api/json_v2.php/" \
-              "CN_MarketDataService.getKLineData?symbol={}&scale={}&ma=yes&datalen=720"
+              "CN_MarketDataService.getKLineData?symbol={}&scale={}&ma=yes&datalen=1000"
     file = open('./database/symbols.json', encoding='utf-8').readlines()
     symbols = json.loads(file[0])
     scale = 60

@@ -1,4 +1,4 @@
-from config import SEQUENCE_LENGTH, FUTURE_CHANCE_LENGTH
+from config import SEQUENCE_LENGTH, FUTURE_CHANCE_LENGTH, TRAIN_LENGTH
 from functools import reduce
 import datetime
 
@@ -138,8 +138,9 @@ if __name__ == '__main__':
     engine = sqlalchemy.create_engine('sqlite:///{}'.format(os.path.join(database_path, 'StockKing.db')))
     df = pd.read_sql_table('ma60m', engine)
     df['datetime'] = pd.to_datetime(df['datetime'])
-    df = get_alpha(df)
     df = df[~df['datetime'].isin(sorted(df['datetime'].unique())[-16:])]
+    df = df[df['datetime'].isin(sorted(df['datetime'].unique())[-TRAIN_LENGTH:])]
+    df = get_alpha(df)
     dt = datetime.date.today().strftime('%Y%m%d')
     emb_info = pd.read_sql_table('emb_info', engine)
     get_label(df, './trainset/train_set{}.csv'.format(dt), emb_info)
