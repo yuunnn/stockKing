@@ -78,7 +78,7 @@ def data_to_sqlite(table, _data, engine):
 
 if __name__ == '__main__':
     api_url = "https://quotes.sina.cn/cn/api/json_v2.php/" \
-              "CN_MarketDataService.getKLineData?symbol={}&scale={}&ma=yes&datalen=1000"
+              "CN_MarketDataService.getKLineData?symbol={}&scale={}&ma=yes&datalen=1024"
     file = open('./database/symbols.json', encoding='utf-8').readlines()
     symbols = json.loads(file[0])
     scale = 60

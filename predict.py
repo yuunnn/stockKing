@@ -34,9 +34,9 @@ def predict(model_file, predicts_file):
 
 
 if __name__ == "__main__":
-    probs, stock_codes = predict('./models/model_1668496212.pkl', './predictset/latest.csv')
+    probs, stock_codes = predict('./models/model_1668783764.pkl', './predictset/latest.csv')
     df = pd.DataFrame(probs.detach().numpy())
-    df.columns = ['观望', '买入', '持有', '卖出']
+    df.columns = ['减持', '中性', '谨慎增持', '增持']
     df['code'] = stock_codes
     dt = datetime.date.today().strftime('%Y%m%d')
     df.to_csv('./predictset/output{}.csv'.format(dt), index=False)

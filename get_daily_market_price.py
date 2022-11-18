@@ -69,7 +69,7 @@ def get_market_price(_api, _symbols, _scale, _datalen, _breakpoint=None):
             data_to_sqlite('ma{}m'.format(scale), stock_ma_info, engine)
         except Exception as e:
             print(e)
-            continue
+            return
 
         print(k, symbol)
         time.sleep(random.random() / 12)

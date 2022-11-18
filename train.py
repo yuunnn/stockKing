@@ -4,7 +4,7 @@ import time
 import warnings
 import torch
 from torch import nn
-from torch.optim import Adam
+from torch.optim import RAdam
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 from utils import get_device, to_device
@@ -57,7 +57,7 @@ class PreprocessedDataset(Dataset):
         _indices = _indices + tmp
         _indices = torch.tensor(_indices)
         _mask = torch.tensor(_mask)
-        _industry = torch.tensor(int(line.split(',')[-2]))
+        _industry = torch.tensor(int(line.split(',')[-2].replace('.0', '')))
         _hour = torch.tensor(int(line.split(',')[-1]))
 
         _sc = line.split(',')[-4]
@@ -114,7 +114,7 @@ class Attention(nn.Module):
 class sequenceModel(nn.Module):
     def __init__(self, step_input_size, hidden_size, sequence_size=SEQUENCE_LENGTH):
         super().__init__()
-        self.lstm = nn.GRU(input_size=step_input_size, hidden_size=hidden_size, num_layers=2,
+        self.lstm = nn.GRU(input_size=step_input_size, hidden_size=hidden_size, num_layers=1,
                            batch_first=True)
         self.pre_bn = nn.BatchNorm1d(step_input_size)
         self.att = Attention(hidden_size)
@@ -124,10 +124,11 @@ class sequenceModel(nn.Module):
         self.hour_emb = nn.Embedding(4, EMB_DIM)
 
         # _fc1 = nn.Linear(2 * sequence_size * hidden_size + EMB_DIM * 2, hidden_size*2)
-        _fc1 = nn.Linear(sequence_size * hidden_size + hidden_size + EMB_DIM * 3, hidden_size * 3)
-        _fc2 = nn.Linear(hidden_size*3, 4)
+        _fc1 = nn.Linear(sequence_size * hidden_size + hidden_size + EMB_DIM * 3, hidden_size * 4)
+        _fc2 = nn.Linear(hidden_size * 4, 4)
         self.mlp = nn.Sequential(
             _fc1,
+            nn.BatchNorm1d(hidden_size * 4),
             nn.PReLU(),
             _fc2
         )
@@ -137,24 +138,23 @@ class sequenceModel(nn.Module):
         x_indices = torch.einsum('abc,ab->abc', x_indices, x_mask).sum(1)
         x_industry = self.industry_emb(x_industry)
         x_hour = self.hour_emb(x_hour)
-
-        x = torch.transpose(x, dim0=1, dim1=2)
-        x = self.pre_bn(x)
-        x = torch.transpose(x, dim0=1, dim1=2)
+        # x = torch.transpose(x, dim0=1, dim1=2)
+        # x = self.pre_bn(x)
+        # x = torch.transpose(x, dim0=1, dim1=2)
         x_seq_output, hn = self.lstm(x)
         x_att = self.att(x_seq_output)
         # x = torch.cat([x_seq_output.flatten(start_dim=1), x_att.flatten(start_dim=1), x_indices, x_industry], 1)
-        x = torch.cat([hn[1], x_att.flatten(start_dim=1), x_indices, x_industry, x_hour], 1)
+        x = torch.cat([hn[-1], x_att.flatten(start_dim=1), x_indices, x_industry, x_hour], 1)
         x = self.mlp(x)
         # x = torch.transpose(hn, dim0=0, dim1=1).flatten(start_dim=1)
         return x
 
 
-def train(lr=0.001, batch_size=128, epoch=8):
+def train(lr=0.0005, batch_size=128, epoch=8):
     device = get_device()
     # device = 'cpu'
     model = sequenceModel(INPUT_SIZE, 12).to(device)
-    optim = Adam(model.parameters(), lr=lr)
+    optim = RAdam(model.parameters(), lr=lr)
     ts = int(time.time())
     ce = nn.CrossEntropyLoss()
     for e in range(epoch):

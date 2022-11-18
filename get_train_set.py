@@ -37,17 +37,17 @@ def get_alpha(x):
 
     x['ma'] = (x['high_price'] + x['low_price']) / 2
     x = x.sort_values(by=['stock_code', 'datetime'])
-    x['ma_change'] = x.groupby(['stock_code'])['ma'].diff().fillna(0)
+    x['ma_change'] = x.groupby(['stock_code'])['ma'].diff().fillna(0).tolist()
     # do not shift 1
-    x['ma15day'] = x.groupby(['stock_code'])['ma'].rolling(60).mean().reset_index()['ma']
-    x['volume_15day'] = x.groupby(['stock_code'])['period_volume'].rolling(60).mean().reset_index()['period_volume']
+    x['ma15day'] = x.groupby(['stock_code'])['ma'].rolling(60).mean().reset_index()['ma'].tolist()
+    x['volume_15day'] = x.groupby(['stock_code'])['period_volume'].rolling(60).mean().reset_index()['period_volume'].tolist()
     # x['volume_ts_15'] = x.groupby(['stock_code'])['period_volume'].rolling(60).apply(
     #     lambda a: ts_rank(a, 60)).reset_index()['period_volume']
     x = x.dropna()
     x['ma_change_rate'] = x['ma_change'] / x['ma']
-    x['ma_change_rate_rank'] = x.groupby(['datetime'])[['ma_change_rate']].rank()
+    x['ma_change_rate_rank'] = x.groupby(['datetime'])['ma_change_rate'].rank().tolist()
     x['double_ma_rate'] = x['ma'] / x['ma15day']
-    x['double_ma_rate_rank'] = x.groupby(['datetime'])[['double_ma_rate']].rank()
+    x['double_ma_rate_rank'] = x.groupby(['datetime'])['double_ma_rate'].rank().tolist()
     x['double_v_rate'] = x['period_volume'] / x['volume_15day']
     # x['volume_change_15day'] = x['period_volume'] / x['volume_15day']
     # x['volume_change_15day_rank'] = x.groupby(['datetime'])[['volume_change_15day']].rank()
@@ -57,79 +57,54 @@ def get_alpha(x):
     return x
 
 
-def get_bieo(x):
-    i = x.index[0]
-    while i < x.index[-1]:
-        current_price = x.loc[i, 'high_price']
-        next_current_price = x.loc[i + 1, 'close_price']
-        if (current_price / next_current_price) >= 0.99:
-            i += 1
-            continue
-        try:
-            future_high_price = x.loc[range(i + 1, i + FUTURE_CHANCE_LENGTH + 1), 'close_price'].max()
-        except KeyError:
-            future_high_price = x.loc[range(i + 1, x.index[-1] + 1), 'close_price'].max()
-        future_high_price_index = x.loc[range(i + 1, x.index[-1] + 1)][x['close_price'] == future_high_price].index[0]
-        if future_high_price / current_price >= 1.21:
-            x.loc[i, 'label'] = 1
-            x.loc[future_high_price_index, 'label'] = 3
-            x.loc[range(i + 1, future_high_price_index), 'label'] = 2
-            i = future_high_price_index + 1
-        else:
-            i += 1
-    return x
-
-
 def get_label(_data, output_file, basic_info=None):
+    _data = _data.sort_values(by=['stock_code', 'datetime'])
     _data['label'] = 0
-    df_res = []
-    for sc in _data['stock_code'].unique():
-        tmp = _data[_data['stock_code'] == sc].sort_values(by='datetime').reset_index().drop('index', axis=1)
-        tmp = get_bieo(tmp)
-        df_res.append(tmp)
+    _data['next_current_price'] = _data.groupby('stock_code')['close_price'].shift(-1).tolist()
+    _data['future_high_price'] = _data.groupby('stock_code')['close_price'].shift(-FUTURE_CHANCE_LENGTH).rolling(
+        FUTURE_CHANCE_LENGTH).max().tolist()
+    _data['future_low_price'] = _data.groupby('stock_code')['low_price'].shift(-FUTURE_CHANCE_LENGTH).rolling(
+        FUTURE_CHANCE_LENGTH).min().tolist()
+    _data = _data.dropna()
+    _data.loc[_data['future_high_price'] / _data['high_price'] >= 1.04, 'label'] = 1
+    _data.loc[(_data['future_high_price'] / _data['high_price'] >= 1.1) & (
+            _data['future_low_price'] / _data['high_price'] >= 0.95), 'label'] = 2
+    _data.loc[(_data['future_high_price'] / _data['high_price'] >= 1.16) & (
+            _data['future_low_price'] / _data['high_price'] >= 0.97), 'label'] = 3
+    _data.loc[_data['next_current_price'] / _data['high_price'] <= 1, 'label'] = 0
 
-    df_res = pd.concat(df_res)
-    df_res = df_res.reset_index().drop('index', axis=1)
+    _data['period_volume'] /= 1000000
+    _data['volume_15day'] /= 1000000
+    _data['ma_change_rate_rank'] = 100 / _data['ma_change_rate_rank']
+    _data['double_ma_rate_rank'] = 100 / _data['double_ma_rate_rank']
+    _data['ma_change_rate'] *= 100
+    _data['open_price'] = np.log1p(_data['open_price'])
+    _data['high_price'] = np.log1p(_data['high_price'])
+    _data['low_price'] = np.log1p(_data['low_price'])
+    _data['close_price'] = np.log1p(_data['close_price'])
+
+    df_res = _data
+
     if basic_info is not None:
         df_res = pd.merge(df_res, basic_info[['stock_code', 'indices', 'industry']], on='stock_code', how='left')
         df_res = df_res.fillna('99')
 
-    for i in df_res.index[:-1]:
-        if df_res.loc[i + 1, 'close_price'] >= df_res.loc[i, 'close_price'] and \
-                df_res.loc[i, 'label'] == 3 and df_res.loc[i + 1, 'label'] == 0 and \
-                df_res.loc[i, 'stock_code'] == df_res.loc[i + 1, 'stock_code']:
-            df_res.loc[i, 'label'] = 2
-            df_res.loc[i + 1, 'label'] = 3
+    step_col = []
+    for i in range(SEQUENCE_LENGTH, 0, -1):
+        for col in ['open_price', 'high_price', 'low_price', 'close_price', 'period_volume',
+                    'ma_change_rate', 'ma_change_rate_rank', 'double_ma_rate', 'double_v_rate',
+                    'double_ma_rate_rank']:
+            _step_col = '{}{}'.format(col, i)
+            step_col.append(_step_col)
+            df_res[_step_col] = df_res.groupby('stock_code')[col].shift(i).tolist()
 
-    for i in df_res.index[:-1]:
-        if df_res.loc[i, 'label'] == 3 and df_res.loc[i + 1, 'label'] == 1 and \
-                df_res.loc[i, 'stock_code'] == df_res.loc[i + 1, 'stock_code']:
-            df_res.loc[i, 'label'] = 2
-            df_res.loc[i + 1, 'label'] = 2
-
-    columns = np.array([['open_price-{}'.format(i), 'high_price-{}'.format(i),
-                         'low_price-{}'.format(i), 'close_price-{}'.format(i),
-                         'period_volume-{}'.format(i)] for i in range(SEQUENCE_LENGTH, 0, -1)]).reshape(1, -1).squeeze()
-    with open(output_file, 'a') as f:
-
-        for sc in df_res['stock_code'].unique():
-            tmp = df_res[df_res['stock_code'] == sc].sort_values(by='datetime').reset_index().drop('index', axis=1)
-            for i in tmp.index[SEQUENCE_LENGTH:]:
-                _step = np.array(tmp.loc[range(i - SEQUENCE_LENGTH, i),
-                                         ['open_price', 'high_price', 'low_price', 'close_price', 'period_volume',
-                                          'ma_change_rate', 'ma_change_rate_rank', 'double_ma_rate', 'double_v_rate',
-                                          'double_ma_rate_rank']]) \
-                    .reshape(1, -1).squeeze()
-                if basic_info is not None:
-                    emb = tmp.loc[i, ['indices', 'industry', 'hour', 'label']].astype(str)
-                    if len(emb) == 0:
-                        continue
-                    _step = np.append(np.append(_step, sc), emb)
-                else:
-                    _step = np.append(_step, [sc, tmp.loc[i, 'label']])
-                f.write(','.join(_step))
-                f.write('\n')
-
+    df_res = df_res.dropna()
+    step_col.append('stock_code')
+    if basic_info is not None:
+        step_col.extend(['indices', 'industry', 'hour'])
+    step_col.append('label')
+    print(df_res['datetime'].max())
+    df_res[step_col].to_csv(output_file, index=None, header=None)
     return
 
 
@@ -138,8 +113,7 @@ if __name__ == '__main__':
     engine = sqlalchemy.create_engine('sqlite:///{}'.format(os.path.join(database_path, 'StockKing.db')))
     df = pd.read_sql_table('ma60m', engine)
     df['datetime'] = pd.to_datetime(df['datetime'])
-    df = df[~df['datetime'].isin(sorted(df['datetime'].unique())[-16:])]
-    df = df[df['datetime'].isin(sorted(df['datetime'].unique())[-TRAIN_LENGTH:])]
+    df = df[df['datetime'].isin(sorted(df['datetime'].unique())[-TRAIN_LENGTH - SEQUENCE_LENGTH:])]
     df = get_alpha(df)
     dt = datetime.date.today().strftime('%Y%m%d')
     emb_info = pd.read_sql_table('emb_info', engine)
