@@ -8,7 +8,7 @@ from torch.optim import RAdam
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 from utils import get_device, to_device
-from config import SEQUENCE_LENGTH, EMB_DIM, INPUT_SIZE
+from config import SEQUENCE_LENGTH, EMB_DIM, INPUT_SIZE, HIDDEN_SIZE
 
 warnings.filterwarnings('ignore')
 
@@ -112,7 +112,7 @@ class Attention(nn.Module):
 
 
 class sequenceModel(nn.Module):
-    def __init__(self, step_input_size, hidden_size, sequence_size=SEQUENCE_LENGTH):
+    def __init__(self, step_input_size, hidden_size=HIDDEN_SIZE, sequence_size=SEQUENCE_LENGTH):
         super().__init__()
         self.lstm = nn.GRU(input_size=step_input_size, hidden_size=hidden_size, num_layers=1,
                            batch_first=True)
@@ -150,15 +150,18 @@ class sequenceModel(nn.Module):
         return x
 
 
-def train(lr=0.0005, batch_size=128, epoch=8):
+def train(lr=0.0004, batch_size=128, epoch=8):
     device = get_device()
     # device = 'cpu'
-    model = sequenceModel(INPUT_SIZE, 12).to(device)
+    model = sequenceModel(INPUT_SIZE).to(device)
     optim = RAdam(model.parameters(), lr=lr)
     ts = int(time.time())
-    ce = nn.CrossEntropyLoss()
+    # ce = nn.CrossEntropyLoss()
+    distance_array = torch.asarray([0, 1, 2, 3])
     for e in range(epoch):
         total_loss = 0
+        total_ce_loss = 0
+        total_distance_loss = 0
         batch_count = 1
         for file in os.listdir('./trainset'):
             if len(file.split('.')) == 1:
@@ -170,14 +173,25 @@ def train(lr=0.0005, batch_size=128, epoch=8):
                 pbar = tqdm(loader)
                 pbar.set_description("[Epoch {}, File {}]".format(e, file))
                 for _data, _indices, _mask, _indusry, _hour, _label in pbar:
-                    softmax_res = model(_data, _indices, _mask, _indusry, _hour)
-                    loss = ce(softmax_res, _label)
+                    res = model(_data, _indices, _mask, _indusry, _hour)
+                    softmax_res = torch.softmax(res, 1)
+                    ce_loss = -softmax_res.log().gather(1, _label.reshape(-1, 1)).mean()
+                    distance_matrix = (distance_array * torch.ones(res.shape[0], 4) - _label.reshape(-1, 1)).abs()
+                    distance_loss = 0.8 * torch.mul(distance_matrix, softmax_res).mean()
+                    loss = ce_loss + distance_loss
+                    # loss = ce(res, _label)
                     total_loss += loss.item()
+                    total_ce_loss += ce_loss.item()
+                    total_distance_loss += distance_loss.item()
                     optim.zero_grad()
                     loss.backward()
                     # 更新参数
                     optim.step()
-                    pbar.set_postfix(avg_loss=total_loss / batch_count)
+                    pbar.set_postfix(
+                        avg_loss=total_loss / batch_count,
+                        ce_loss=total_ce_loss / batch_count,
+                        distance_loss=total_distance_loss / batch_count
+                    )
                     batch_count += 1
         torch.save(model, os.path.join('./models', f'model_{ts}.pkl'))  # save entire net
 

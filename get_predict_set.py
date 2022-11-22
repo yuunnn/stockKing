@@ -46,8 +46,8 @@ def get_alpha(x):
     x['ma15day'] = x.groupby(['stock_code'])['ma'].rolling(60).mean().reset_index()['ma'].tolist()
     x['volume_15day'] = x.groupby(['stock_code'])['period_volume'].rolling(60).mean().reset_index()[
         'period_volume'].tolist()
-    # x['volume_ts_15'] = x.groupby(['stock_code'])['period_volume'].rolling(60).apply(
-    #     lambda a: ts_rank(a, 60)).reset_index()['period_volume']
+    x['volume_ts_15'] = x.groupby(['stock_code'])['period_volume'].rolling(60).apply(
+        lambda a: ts_rank(a, 60)).reset_index()['period_volume'].tolist()
     x = x.dropna()
     x['ma_change_rate'] = x['ma_change'] / x['ma']
     x['ma_change_rate_rank'] = x.groupby(['datetime'])['ma_change_rate'].rank().tolist()
@@ -84,12 +84,13 @@ def get_data(_data, output_file, basic_info=None):
     for i in range(SEQUENCE_LENGTH, 0, -1):
         for col in ['open_price', 'high_price', 'low_price', 'close_price', 'period_volume',
                     'ma_change_rate', 'ma_change_rate_rank', 'double_ma_rate', 'double_v_rate',
-                    'double_ma_rate_rank']:
+                    'double_ma_rate_rank', 'volume_ts_15']:
             _step_col = '{}{}'.format(col, i)
             step_col.append(_step_col)
             df_res[_step_col] = df_res.groupby('stock_code')[col].shift(i).tolist()
 
     df_res = df_res.dropna()
+    print(df_res['datetime'].max())
     df_res = df_res[df_res['datetime'] == df_res['datetime'].max()]
 
     step_col.append('stock_code')

@@ -41,8 +41,8 @@ def get_alpha(x):
     # do not shift 1
     x['ma15day'] = x.groupby(['stock_code'])['ma'].rolling(60).mean().reset_index()['ma'].tolist()
     x['volume_15day'] = x.groupby(['stock_code'])['period_volume'].rolling(60).mean().reset_index()['period_volume'].tolist()
-    # x['volume_ts_15'] = x.groupby(['stock_code'])['period_volume'].rolling(60).apply(
-    #     lambda a: ts_rank(a, 60)).reset_index()['period_volume']
+    x['volume_ts_15'] = x.groupby(['stock_code'])['period_volume'].rolling(60).apply(
+        lambda a: ts_rank(a, 60)).reset_index()['period_volume'].tolist()
     x = x.dropna()
     x['ma_change_rate'] = x['ma_change'] / x['ma']
     x['ma_change_rate_rank'] = x.groupby(['datetime'])['ma_change_rate'].rank().tolist()
@@ -69,9 +69,9 @@ def get_label(_data, output_file, basic_info=None):
     _data.loc[_data['future_high_price'] / _data['high_price'] >= 1.04, 'label'] = 1
     _data.loc[(_data['future_high_price'] / _data['high_price'] >= 1.1) & (
             _data['future_low_price'] / _data['high_price'] >= 0.95), 'label'] = 2
-    _data.loc[(_data['future_high_price'] / _data['high_price'] >= 1.16) & (
-            _data['future_low_price'] / _data['high_price'] >= 0.97), 'label'] = 3
-    _data.loc[_data['next_current_price'] / _data['high_price'] <= 1, 'label'] = 0
+    _data.loc[(_data['future_high_price'] / _data['high_price'] >= 1.15) & (
+            _data['future_low_price'] / _data['high_price'] >= 0.98), 'label'] = 3
+    # _data.loc[_data['next_current_price'] / _data['high_price'] <= 1, 'label'] = 0
 
     _data['period_volume'] /= 1000000
     _data['volume_15day'] /= 1000000
@@ -93,7 +93,7 @@ def get_label(_data, output_file, basic_info=None):
     for i in range(SEQUENCE_LENGTH, 0, -1):
         for col in ['open_price', 'high_price', 'low_price', 'close_price', 'period_volume',
                     'ma_change_rate', 'ma_change_rate_rank', 'double_ma_rate', 'double_v_rate',
-                    'double_ma_rate_rank']:
+                    'double_ma_rate_rank', 'volume_ts_15']:
             _step_col = '{}{}'.format(col, i)
             step_col.append(_step_col)
             df_res[_step_col] = df_res.groupby('stock_code')[col].shift(i).tolist()
