@@ -82,6 +82,9 @@ def get_label(_data, output_file, basic_info=None):
     _data['high_price'] = np.log1p(_data['high_price'])
     _data['low_price'] = np.log1p(_data['low_price'])
     _data['close_price'] = np.log1p(_data['close_price'])
+    _data['flag'] = _data.groupby('stock_code')['label'].diff()
+    _data.loc[(_data['flag'] > 0) & (_data['label'] == 3), 'label'] = 4
+    _data = _data.dropna()
 
     df_res = _data
 

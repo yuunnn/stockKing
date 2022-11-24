@@ -70,6 +70,7 @@ class DeviceDataLoader:
         self.device = device
 
     def __iter__(self):
+        # batch = yield from self.dl
         for batch in self.dl:
             yield to_device(batch, self.device)
 
@@ -125,7 +126,7 @@ class sequenceModel(nn.Module):
 
         # _fc1 = nn.Linear(2 * sequence_size * hidden_size + EMB_DIM * 2, hidden_size*2)
         _fc1 = nn.Linear(sequence_size * hidden_size + hidden_size + EMB_DIM * 3, hidden_size * 4)
-        _fc2 = nn.Linear(hidden_size * 4, 4)
+        _fc2 = nn.Linear(hidden_size * 4, 5)
         self.mlp = nn.Sequential(
             _fc1,
             nn.BatchNorm1d(hidden_size * 4),
@@ -157,7 +158,7 @@ def train(lr=0.0004, batch_size=128, epoch=8):
     optim = RAdam(model.parameters(), lr=lr)
     ts = int(time.time())
     # ce = nn.CrossEntropyLoss()
-    distance_array = torch.asarray([0, 1, 2, 3])
+    distance_array = torch.asarray([0, 1, 2, 3, 4]).to(device)
     for e in range(epoch):
         total_loss = 0
         total_ce_loss = 0
@@ -176,7 +177,7 @@ def train(lr=0.0004, batch_size=128, epoch=8):
                     res = model(_data, _indices, _mask, _indusry, _hour)
                     softmax_res = torch.softmax(res, 1)
                     ce_loss = -softmax_res.log().gather(1, _label.reshape(-1, 1)).mean()
-                    distance_matrix = (distance_array * torch.ones(res.shape[0], 4) - _label.reshape(-1, 1)).abs()
+                    distance_matrix = (distance_array * torch.ones(res.shape[0], 5).to(device) - _label.reshape(-1, 1)).abs()
                     distance_loss = 0.8 * torch.mul(distance_matrix, softmax_res).mean()
                     loss = ce_loss + distance_loss
                     # loss = ce(res, _label)
