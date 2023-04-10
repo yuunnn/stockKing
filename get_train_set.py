@@ -49,11 +49,12 @@ def get_alpha(x):
     x['double_ma_rate'] = x['ma'] / x['ma15day']
     x['double_ma_rate_rank'] = x.groupby(['datetime'])['double_ma_rate'].rank().tolist()
     x['double_v_rate'] = x['period_volume'] / x['volume_15day']
-    # x['volume_change_15day'] = x['period_volume'] / x['volume_15day']
-    # x['volume_change_15day_rank'] = x.groupby(['datetime'])[['volume_change_15day']].rank()
+    # from chatgpt
+    x['momentum'] = (x['close_price'].shift(1) - x['close_price'].shift(11)) / x['close_price'].shift(11)
+    x['mean_reversion'] = (x['close_price'].iloc[-1] - x['close_price'].rolling(window=20).mean().iloc[-1]) / x['close_price'].rolling(window=20).std().iloc[-1]
+    x['volume_ratio'] = x['period_volume'].iloc[-1] / x['period_volume'].rolling(window=10).mean().iloc[-1]
 
-    # ['ma', 'ma_change', 'ma15day', 'ma_change_rate', 'ma_change_rate_rank', 'double_ma_rate', 'double_ma_rate_rank',
-    # volume_rate_rank, 'volume_change_15day', 'volume_change_15day_rank', 'volume_ts_15]
+
     return x
 
 
@@ -96,7 +97,7 @@ def get_label(_data, output_file, basic_info=None):
     for i in range(SEQUENCE_LENGTH, 0, -1):
         for col in ['open_price', 'high_price', 'low_price', 'close_price', 'period_volume',
                     'ma_change_rate', 'ma_change_rate_rank', 'double_ma_rate', 'double_v_rate',
-                    'double_ma_rate_rank', 'volume_ts_15']:
+                    'double_ma_rate_rank', 'volume_ts_15','momentum','mean_reversion','volume_ratio']:
             _step_col = '{}{}'.format(col, i)
             step_col.append(_step_col)
             df_res[_step_col] = df_res.groupby('stock_code')[col].shift(i).tolist()
@@ -119,5 +120,5 @@ if __name__ == '__main__':
     df = df[df['datetime'].isin(sorted(df['datetime'].unique())[-TRAIN_LENGTH - SEQUENCE_LENGTH:])]
     df = get_alpha(df)
     dt = datetime.date.today().strftime('%Y%m%d')
-    emb_info = pd.read_sql_table('emb_info', engine)
+    emb_info = pd.read_sql_table('emb_info', engine) 
     get_label(df, './trainset/train_set{}.csv'.format(dt), emb_info)
