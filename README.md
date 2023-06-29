@@ -30,6 +30,7 @@ python get_daily_market_price.py
 Train as often as you see fit, but ideally train daily. It is recommended to update the model at least once a week.
 ```
 python get_train_set.py
+cd trainset; sh split_file.sh; cd ..
 python train.py
 ```
 
