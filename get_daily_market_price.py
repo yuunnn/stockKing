@@ -81,7 +81,9 @@ def data_to_sqlite(table, _data, engine):
 
 
 if __name__ == '__main__':
-    datalen = 28
+    # 注意这个datalen=4的原因是我选了60m为单位的交易数据，一天有4个交易小时，因此是4，如果你要补2天的，datalen就是8。或者你想用120m的交易
+    # 数据，那每天的补数就是2
+    datalen = 4
     scale = 60
     api_url = "https://quotes.sina.cn/cn/api/json_v2.php/" \
               "CN_MarketDataService.getKLineData?symbol={}&scale={}&ma=yes&datalen={}"

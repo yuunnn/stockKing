@@ -81,5 +81,6 @@ if __name__ == '__main__':
               "CN_MarketDataService.getKLineData?symbol={}&scale={}&ma=yes&datalen=1024"
     file = open('./database/symbols.json', encoding='utf-8').readlines()
     symbols = json.loads(file[0])
+    # scale目前可以是30、60、120，代表30分、60分、120分k线数据。
     scale = 60
     get_market_price(api_url, symbols, scale)

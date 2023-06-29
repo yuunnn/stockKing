@@ -79,12 +79,18 @@ def get_data(_data, output_file, basic_info=None):
     df_res['high_price'] = np.log1p(df_res['high_price'])
     df_res['low_price'] = np.log1p(df_res['low_price'])
     df_res['close_price'] = np.log1p(df_res['close_price'])
+    df_res['momentum'] = (df_res['close_price'].shift(1) - df_res['close_price'].shift(11)) / df_res[
+        'close_price'].shift(11)
+    df_res['mean_reversion'] = (df_res['close_price'].iloc[-1] - df_res['close_price'].rolling(window=20).mean().iloc[
+        -1]) / df_res['close_price'].rolling(window=20).std().iloc[-1]
+    df_res['volume_ratio'] = df_res['period_volume'].iloc[-1] / df_res['period_volume'].rolling(window=10).mean().iloc[
+        -1]
 
     step_col = []
     for i in range(SEQUENCE_LENGTH, 0, -1):
         for col in ['open_price', 'high_price', 'low_price', 'close_price', 'period_volume',
                     'ma_change_rate', 'ma_change_rate_rank', 'double_ma_rate', 'double_v_rate',
-                    'double_ma_rate_rank', 'volume_ts_15']:
+                    'double_ma_rate_rank', 'volume_ts_15', 'momentum', 'mean_reversion', 'volume_ratio']:
             _step_col = '{}{}'.format(col, i)
             step_col.append(_step_col)
             df_res[_step_col] = df_res.groupby('stock_code')[col].shift(i).tolist()
