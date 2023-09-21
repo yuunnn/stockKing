@@ -160,9 +160,10 @@ def train(lr=0.008, batch_size=128, epoch=8):
     ts = int(time.time())
     # ce = nn.CrossEntropyLoss()
     distance_array = torch.asarray([0, 1, 2, 3, 4]).to(device)
+    alpha = torch.tensor([0.1, 0.2, 0.3, 0.4])
     for e in range(epoch):
         total_loss = 0
-        total_ce_loss = 0
+        total_focal_loss = 0
         total_distance_loss = 0
         batch_count = 1
         for file in os.listdir('./trainset'):
@@ -176,14 +177,18 @@ def train(lr=0.008, batch_size=128, epoch=8):
                 pbar.set_description("[Epoch {}, File {}]".format(e, file))
                 for _data, _indices, _mask, _indusry, _hour, _label in pbar:
                     res = model(_data, _indices, _mask, _indusry, _hour)
+                    batch_alpha = alpha[_label]
                     softmax_res = torch.softmax(res, 1)
-                    ce_loss = -softmax_res.log().gather(1, _label.reshape(-1, 1)).mean()
-                    distance_matrix = (distance_array * torch.ones(res.shape[0], 5).to(device) - _label.reshape(-1, 1)).abs()
+                    ce_loss = -softmax_res.log().gather(1, _label.reshape(-1, 1)).view(-1)
+                    focal_loss = batch_alpha * (1 - torch.exp(-ce_loss)) ** 2 * ce_loss
+                    focal_loss = focal_loss.mean()
+                    distance_matrix = (
+                                distance_array * torch.ones(res.shape[0], 5).to(device) - _label.reshape(-1, 1)).abs()
                     distance_loss = 2 * torch.mul(distance_matrix, softmax_res).mean()
-                    loss = ce_loss + distance_loss
+                    loss = focal_loss + distance_loss
                     # loss = ce(res, _label)
                     total_loss += loss.item()
-                    total_ce_loss += ce_loss.item()
+                    total_focal_loss += focal_loss.item()
                     total_distance_loss += distance_loss.item()
                     optim.zero_grad()
                     loss.backward()
@@ -191,7 +196,7 @@ def train(lr=0.008, batch_size=128, epoch=8):
                     optim.step()
                     pbar.set_postfix(
                         avg_loss=total_loss / batch_count,
-                        ce_loss=total_ce_loss / batch_count,
+                        focal_loss=total_focal_loss / batch_count,
                         distance_loss=total_distance_loss / batch_count
                     )
                     batch_count += 1

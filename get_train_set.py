@@ -32,6 +32,16 @@ def datetime_hour_to_index(x):
     return 'fuck the datetime is wrong'
 
 
+def convert_float32(x):
+    # 迭代数据框的每一列
+    for col in x.columns:
+        # 检查列的数据类型是否为浮点数
+        if np.issubdtype(x[col].dtype, np.floating):
+            # 将浮点数列转换为float32
+            x[col] = x[col].astype(np.float16)
+    return x
+
+
 def get_alpha(x):
     x['hour'] = x['datetime'].apply(datetime_hour_to_index)
 
@@ -40,7 +50,8 @@ def get_alpha(x):
     x['ma_change'] = x.groupby(['stock_code'])['ma'].diff().fillna(0).tolist()
     # do not shift 1
     x['ma15day'] = x.groupby(['stock_code'])['ma'].rolling(60).mean().reset_index()['ma'].tolist()
-    x['volume_15day'] = x.groupby(['stock_code'])['period_volume'].rolling(60).mean().reset_index()['period_volume'].tolist()
+    x['volume_15day'] = x.groupby(['stock_code'])['period_volume'].rolling(60).mean().reset_index()[
+        'period_volume'].tolist()
     x['volume_ts_15'] = x.groupby(['stock_code'])['period_volume'].rolling(60).apply(
         lambda a: ts_rank(a, 60)).reset_index()['period_volume'].tolist()
     x = x.dropna()
@@ -51,9 +62,9 @@ def get_alpha(x):
     x['double_v_rate'] = x['period_volume'] / x['volume_15day']
     # from chatgpt
     x['momentum'] = (x['close_price'].shift(1) - x['close_price'].shift(11)) / x['close_price'].shift(11)
-    x['mean_reversion'] = (x['close_price'].iloc[-1] - x['close_price'].rolling(window=20).mean().iloc[-1]) / x['close_price'].rolling(window=20).std().iloc[-1]
+    x['mean_reversion'] = (x['close_price'].iloc[-1] - x['close_price'].rolling(window=20).mean().iloc[-1]) \
+                          / x['close_price'].rolling(window=20).std().iloc[-1]
     x['volume_ratio'] = x['period_volume'].iloc[-1] / x['period_volume'].rolling(window=10).mean().iloc[-1]
-
 
     return x
 
@@ -67,11 +78,11 @@ def get_label(_data, output_file, basic_info=None):
     _data['future_low_price'] = _data.groupby('stock_code')['low_price'].shift(-FUTURE_CHANCE_LENGTH).rolling(
         FUTURE_CHANCE_LENGTH).min().tolist()
     _data = _data.dropna()
-    _data.loc[_data['future_high_price'] / _data['high_price'] >= 1.04, 'label'] = 1
-    _data.loc[(_data['future_high_price'] / _data['high_price'] >= 1.1) & (
-            _data['future_low_price'] / _data['high_price'] >= 0.95), 'label'] = 2
-    _data.loc[(_data['future_high_price'] / _data['high_price'] >= 1.15) & (
-            _data['future_low_price'] / _data['high_price'] >= 0.98), 'label'] = 3
+    _data.loc[_data['future_high_price'] / _data['high_price'] >= 1.03, 'label'] = 1
+    _data.loc[(_data['future_high_price'] / _data['high_price'] >= 1.08) & (
+            _data['future_low_price'] / _data['high_price'] >= 0.98), 'label'] = 2
+    _data.loc[(_data['future_high_price'] / _data['high_price'] >= 1.14) & (
+            _data['future_low_price'] / _data['high_price'] >= 1), 'label'] = 3
     # _data.loc[_data['next_current_price'] / _data['high_price'] <= 1, 'label'] = 0
 
     _data['period_volume'] /= 1000000
@@ -84,7 +95,7 @@ def get_label(_data, output_file, basic_info=None):
     _data['low_price'] = np.log1p(_data['low_price'])
     _data['close_price'] = np.log1p(_data['close_price'])
     _data['flag'] = _data.groupby('stock_code')['label'].diff()
-    _data.loc[(_data['flag'] > 0) & (_data['label'] == 3), 'label'] = 4
+    # _data.loc[(_data['flag'] > 0) & (_data['label'] == 3), 'label'] = 4
     _data = _data.dropna()
 
     df_res = _data
@@ -97,7 +108,7 @@ def get_label(_data, output_file, basic_info=None):
     for i in range(SEQUENCE_LENGTH, 0, -1):
         for col in ['open_price', 'high_price', 'low_price', 'close_price', 'period_volume',
                     'ma_change_rate', 'ma_change_rate_rank', 'double_ma_rate', 'double_v_rate',
-                    'double_ma_rate_rank', 'volume_ts_15','momentum','mean_reversion','volume_ratio']:
+                    'double_ma_rate_rank', 'volume_ts_15', 'momentum', 'mean_reversion', 'volume_ratio']:
             _step_col = '{}{}'.format(col, i)
             step_col.append(_step_col)
             df_res[_step_col] = df_res.groupby('stock_code')[col].shift(i).tolist()
@@ -108,6 +119,7 @@ def get_label(_data, output_file, basic_info=None):
         step_col.extend(['indices', 'industry', 'hour'])
     step_col.append('label')
     print(df_res['datetime'].max())
+    df_res = convert_float32(df_res)
     df_res[step_col].to_csv(output_file, index=None, header=None)
     return
 
@@ -120,5 +132,5 @@ if __name__ == '__main__':
     df = df[df['datetime'].isin(sorted(df['datetime'].unique())[-TRAIN_LENGTH - SEQUENCE_LENGTH:])]
     df = get_alpha(df)
     dt = datetime.date.today().strftime('%Y%m%d')
-    emb_info = pd.read_sql_table('emb_info', engine) 
+    emb_info = pd.read_sql_table('emb_info', engine)
     get_label(df, './trainset/train_set{}.csv'.format(dt), emb_info)
