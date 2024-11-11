@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import sqlalchemy
 import warnings
-from numba import jit
+from numba import jit, njit
 from sortedcontainers import SortedList
 from config import SEQUENCE_LENGTH
 
@@ -17,6 +17,11 @@ def ts_rank(x, n):
     return sl.bisect_left(res) / n
 
 
+@njit
+def ts_rank_numba(a):
+    return np.argsort(np.argsort(a))[-1] / (len(a) - 1)
+
+
 def datetime_hour_to_index(x):
     if x.hour == 10:
         return 0
@@ -26,7 +31,9 @@ def datetime_hour_to_index(x):
         return 2
     if x.hour == 15:
         return 3
-    return 'fuck the datetime is wrong'
+    else:
+        # 返回默认值或抛出异常
+        return -1  # 或者 raise ValueError(f"Unexpected hour value: {x.hour}")
 
 
 def rollingRankArgSort(array):
@@ -39,26 +46,68 @@ def rollingRankArgSort(array):
 def get_alpha(x):
     x['hour'] = x['datetime'].apply(datetime_hour_to_index)
 
-    x['ma'] = (x['high_price'] + x['low_price']) / 2
     x = x.sort_values(by=['stock_code', 'datetime'])
-    x['ma_change'] = x.groupby(['stock_code'])['ma'].diff().fillna(0).tolist()
-    # do not shift 1
-    x['ma15day'] = x.groupby(['stock_code'])['ma'].rolling(60).mean().reset_index()['ma'].tolist()
-    x['volume_15day'] = x.groupby(['stock_code'])['period_volume'].rolling(60).mean().reset_index()[
-        'period_volume'].tolist()
-    x['volume_ts_15'] = x.groupby(['stock_code'])['period_volume'].rolling(60).apply(
-        lambda a: ts_rank(a, 60)).reset_index()['period_volume'].tolist()
-    x = x.dropna()
-    x['ma_change_rate'] = x['ma_change'] / x['ma']
-    x['ma_change_rate_rank'] = x.groupby(['datetime'])['ma_change_rate'].rank().tolist()
-    x['double_ma_rate'] = x['ma'] / x['ma15day']
-    x['double_ma_rate_rank'] = x.groupby(['datetime'])['double_ma_rate'].rank().tolist()
-    x['double_v_rate'] = x['period_volume'] / x['volume_15day']
-    # x['volume_change_15day'] = x['period_volume'] / x['volume_15day']
-    # x['volume_change_15day_rank'] = x.groupby(['datetime'])[['volume_change_15day']].rank()
+    # 计算MA均线
+    x['ma'] = (x['high_price'] + x['low_price']) / 2
+    x['ma_change'] = x.groupby(['stock_code'])['ma'].diff().fillna(0)
 
-    # ['ma', 'ma_change', 'ma15day', 'ma_change_rate', 'ma_change_rate_rank', 'double_ma_rate', 'double_ma_rate_rank',
-    # volume_rate_rank, 'volume_change_15day', 'volume_change_15day_rank', 'volume_ts_15]
+    # 计算MA15天均线
+    x['ma15day'] = x.groupby('stock_code')['ma'].transform(lambda s: s.rolling(window=60).mean())
+    x['volume_15day'] = x.groupby('stock_code')['period_volume'].transform(lambda s: s.rolling(window=60).mean())
+    x['volume_ts_15'] = x.groupby('stock_code')['period_volume'].transform(
+        lambda s: s.rolling(window=60).apply(ts_rank_numba, raw=True))
+
+    # 计算其他技术指标
+    x['ma_change_rate'] = x['ma_change'] / x['ma']
+    x['ma_change_rate_rank'] = x.groupby('datetime')['ma_change_rate'].rank()
+    x['double_ma_rate'] = x['ma'] / x['ma15day']
+    x['double_ma_rate_rank'] = x.groupby('datetime')['double_ma_rate'].rank()
+    x['double_v_rate'] = x['period_volume'] / x['volume_15day']
+
+    # 计算动量、均值回归和量比
+    x['momentum'] = (x.groupby('stock_code')['close_price'].shift(1) - x.groupby('stock_code')['close_price'].shift(
+        11)) / x.groupby('stock_code')['close_price'].shift(11)
+    x['mean_reversion'] = (x['close_price'] - x.groupby('stock_code')['close_price'].transform(
+        lambda s: s.rolling(window=20).mean())) / x.groupby('stock_code')['close_price'].transform(
+        lambda s: s.rolling(window=20).std())
+    x['volume_ratio'] = x['period_volume'] / x.groupby('stock_code')['period_volume'].transform(
+        lambda s: s.rolling(window=10).mean())
+
+    # 添加MACD指标
+    x['ema12'] = x.groupby('stock_code')['close_price'].transform(lambda s: s.ewm(span=12, adjust=False).mean())
+    x['ema26'] = x.groupby('stock_code')['close_price'].transform(lambda s: s.ewm(span=26, adjust=False).mean())
+    x['macd'] = x['ema12'] - x['ema26']
+    x['signal_line'] = x.groupby('stock_code')['macd'].transform(lambda s: s.ewm(span=9, adjust=False).mean())
+    x['macd_hist'] = x['macd'] - x['signal_line']
+
+    # 添加RSI指标
+    delta = x.groupby('stock_code')['close_price'].diff()
+    up = delta.clip(lower=0)
+    down = -1 * delta.clip(upper=0)
+    avg_gain = up.groupby(x['stock_code']).transform(lambda s: s.rolling(window=14).mean())
+    avg_loss = down.groupby(x['stock_code']).transform(lambda s: s.rolling(window=14).mean())
+    rs = avg_gain / avg_loss
+    x['rsi'] = 100 - (100 / (1 + rs))
+
+    # 添加布林带指标
+    rolling_mean = x.groupby('stock_code')['close_price'].transform(lambda s: s.rolling(window=20).mean())
+    rolling_std = x.groupby('stock_code')['close_price'].transform(lambda s: s.rolling(window=20).std())
+    x['bollinger_upper'] = rolling_mean + (rolling_std * 2)
+    x['bollinger_lower'] = rolling_mean - (rolling_std * 2)
+    x['bollinger_width'] = x['bollinger_upper'] - x['bollinger_lower']
+
+    # 特征标准化
+    features_to_scale = ['ma_change_rate', 'double_ma_rate', 'double_v_rate', 'momentum',
+                         'mean_reversion', 'volume_ratio', 'macd', 'macd_hist', 'rsi',
+                         'bollinger_width']
+    for feature in features_to_scale:
+        mean = x[feature].mean()
+        std = x[feature].std()
+        x[feature] = (x[feature] - mean) / std
+
+    # 处理异常值（用中位数填充）
+    x = x.fillna(x.median(numeric_only=True))
+
     return x
 
 

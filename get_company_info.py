@@ -16,7 +16,7 @@ def get_company_info_from_tushare():
         _code, _exchange = x.split('.')
         return _exchange.lower() + str(_code)
 
-    pro = ts.pro_api('7e0b71553d2355108c8c429dfe48bd42f20fa82a80d08b92b1128426')
+    pro = ts.pro_api('please fill in your own api key')
 
     # 拉取数据
     df = pro.stock_company(**{

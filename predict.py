@@ -9,7 +9,7 @@ from torch import nn
 from torch.optim import Adam
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
-from train import sequenceModel, Attention, PreprocessedDataset, DeviceDataLoader
+from train import sequenceModel, PreprocessedDataset, DeviceDataLoader
 from config import SEQUENCE_LENGTH, INPUT_SIZE
 from utils import get_device
 
@@ -34,9 +34,9 @@ def predict(model_file, predicts_file):
 
 
 if __name__ == "__main__":
-    probs, stock_codes = predict('models\model_1669224771.pkl', './predictset/latest.csv')
-    df = pd.DataFrame(probs.detach().numpy())
-    df.columns = ['减持', '中性', '谨慎增持', '增持', '买入']
+    probs, stock_codes = predict('models/model_1731256821.pkl', './predictset/latest.csv')
+    df = pd.DataFrame(np.exp(probs.detach().numpy()))
+    df.columns = ['涨幅']
     df['code'] = stock_codes
     dt = datetime.date.today().strftime('%Y%m%d')
     df.to_csv('./predictset/output{}.csv'.format(dt), index=False)

@@ -64,8 +64,8 @@ def get_market_price(_api, _symbols, _scale, _breakpoint=None):
         stock_ma_info['high_price'] = stock_ma_info['high_price'].astype('double')
         stock_ma_info['low_price'] = stock_ma_info['low_price'].astype('double')
         stock_ma_info['close_price'] = stock_ma_info['close_price'].astype('double')
-        stock_ma_info['period_volume'] = stock_ma_info['period_volume'].astype('int64')
-
+        stock_ma_info['period_volume'] = stock_ma_info['period_volume'].astype('float').astype('int64')
+        stock_ma_info = stock_ma_info.drop('amount', axis=1)
         data_to_sqlite('ma{}m'.format(scale), stock_ma_info, engine)
         print(k, symbol)
         time.sleep(random.random() / 12)
@@ -83,4 +83,4 @@ if __name__ == '__main__':
     symbols = json.loads(file[0])
     # scale目前可以是30、60、120，代表30分、60分、120分k线数据。
     scale = 60
-    get_market_price(api_url, symbols, scale)
+    get_market_price(api_url, symbols, scale,'sh603586')
