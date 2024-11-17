@@ -74,24 +74,24 @@ def get_alpha(x):
         lambda s: s.rolling(window=10).mean())
 
     # 添加MACD指标
-    x['ema12'] = x.groupby('stock_code')['close_price'].transform(lambda s: s.ewm(span=12, adjust=False).mean())
-    x['ema26'] = x.groupby('stock_code')['close_price'].transform(lambda s: s.ewm(span=26, adjust=False).mean())
+    x['ema12'] = x.groupby('stock_code')['close_price'].transform(lambda s: s.ewm(span=6, adjust=False).mean())
+    x['ema26'] = x.groupby('stock_code')['close_price'].transform(lambda s: s.ewm(span=16, adjust=False).mean())
     x['macd'] = x['ema12'] - x['ema26']
-    x['signal_line'] = x.groupby('stock_code')['macd'].transform(lambda s: s.ewm(span=9, adjust=False).mean())
+    x['signal_line'] = x.groupby('stock_code')['macd'].transform(lambda s: s.ewm(span=5, adjust=False).mean())
     x['macd_hist'] = x['macd'] - x['signal_line']
 
     # 添加RSI指标
     delta = x.groupby('stock_code')['close_price'].diff()
     up = delta.clip(lower=0)
     down = -1 * delta.clip(upper=0)
-    avg_gain = up.groupby(x['stock_code']).transform(lambda s: s.rolling(window=14).mean())
-    avg_loss = down.groupby(x['stock_code']).transform(lambda s: s.rolling(window=14).mean())
+    avg_gain = up.groupby(x['stock_code']).transform(lambda s: s.rolling(window=10).mean())
+    avg_loss = down.groupby(x['stock_code']).transform(lambda s: s.rolling(window=10).mean())
     rs = avg_gain / avg_loss
     x['rsi'] = 100 - (100 / (1 + rs))
 
     # 添加布林带指标
-    rolling_mean = x.groupby('stock_code')['close_price'].transform(lambda s: s.rolling(window=20).mean())
-    rolling_std = x.groupby('stock_code')['close_price'].transform(lambda s: s.rolling(window=20).std())
+    rolling_mean = x.groupby('stock_code')['close_price'].transform(lambda s: s.rolling(window=10).mean())
+    rolling_std = x.groupby('stock_code')['close_price'].transform(lambda s: s.rolling(window=10).std())
     x['bollinger_upper'] = rolling_mean + (rolling_std * 2)
     x['bollinger_lower'] = rolling_mean - (rolling_std * 2)
     x['bollinger_width'] = x['bollinger_upper'] - x['bollinger_lower']

@@ -124,6 +124,8 @@ def get_label(_data, output_file, basic_info=None):
     _data['label'] = np.log(_data['future_close_price'] / _data['close_price'])
 
     # 数据归一化和转换
+    _data['ori_open_price'] = _data['open_price']
+    _data['ori_close_price'] = _data['close_price']
     _data['period_volume'] /= 1000000
     _data['volume_15day'] /= 1000000
     _data['ma_change_rate_rank'] = 100 / _data['ma_change_rate_rank']
@@ -157,7 +159,9 @@ def get_label(_data, output_file, basic_info=None):
     step_col.append('stock_code')
     if basic_info is not None:
         step_col.extend(['indices', 'industry', 'hour'])
-    step_col.append('label')
+    step_col.append('ori_open_price')
+    step_col.append('ori_close_price')
+    step_col.append('datetime')
     print(df_res['datetime'].max())
     df_res = convert_float32(df_res)
     df_res[step_col].to_csv(output_file, index=None, header=None)
@@ -169,8 +173,8 @@ if __name__ == '__main__':
     engine = sqlalchemy.create_engine('sqlite:///{}'.format(os.path.join(database_path, 'StockKing.db')))
     df = pd.read_sql_table('ma60m', engine)
     df['datetime'] = pd.to_datetime(df['datetime'])
-    df = df[df['datetime'].isin(sorted(df['datetime'].unique())[-TRAIN_LENGTH - SEQUENCE_LENGTH-100:-100])]
+    df = df[df['datetime'].isin(sorted(df['datetime'].unique())[-100:])]
     df = get_alpha(df)
     dt = datetime.date.today().strftime('%Y%m%d')
     emb_info = pd.read_sql_table('emb_info', engine)
-    get_label(df, './trainset/train_set{}.csv'.format(dt), emb_info)
+    get_label(df, './backtestset/backtest_set{}.csv'.format(dt), emb_info)

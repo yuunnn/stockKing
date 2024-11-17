@@ -27,9 +27,9 @@ def predict(model_file, predicts_file):
     stocks = []
     res = []
     for _data, _indices, _mask, _indusry, _hour, sc in pbar:
-        softmax_res = nn.Softmax()(model(_data, _indices, _mask, _indusry, _hour))
+        _res = model(_data, _indices, _mask, _indusry, _hour)
         stocks.append(sc)
-        res.append(softmax_res)
+        res.append(_res)
     return torch.cat(res).cpu(), np.concatenate(stocks)
 
 
